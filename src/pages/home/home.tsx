@@ -11,6 +11,7 @@ const Home: React.FC = () => {
         {cardsData.map(card => (
           <DataCard
             key={card.id}
+            id={card.id}
             title={card.title}
             value={card.value}
             description={card.description}

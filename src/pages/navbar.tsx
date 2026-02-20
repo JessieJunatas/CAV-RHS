@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { BookText, Menu, Info, Logs } from "lucide-react";
 
 import {
@@ -64,52 +65,68 @@ const Navbar = ({
     alt: "RHS Logo",
     title: "Auto-Forms",
   },
+
+
+
+  //NAVIGATION MENU
   menu = [
-    { title: "Home", url: "#" },
+    //HOME 
+    { title: 
+      "Home",
+       url: "/" 
+      },
+    //FORMS
     {
       title: "Forms",
-      url: "#",
+      url: "/forms",
+      //LIST OF FORMS
       items: [
         {
           title: "C.A.V Forms",
           description: "Retrieve and auto-complete Certification, Authentication, and Verification.",
           icon: <BookText className="size-5 shrink-0" />,
-          url: "#",
+          url: "/forms/cav",
         },
       ],
     },
+    //INFORMATION
     {
       title: "Information",
-      url: "#",
+      url: "/information",
+      //LIST OF INFORMATION
       items: [
         {
           title: "About System",
           description: "Get all the answers you need right here",
           icon: <Info className="size-5 shrink-0" />,
-          url: "#",
+          url: "/about",
         },
+
         {
           title: "Audit Logs",
           description: "Track system changes here.",
           icon: <Logs className="size-5 shrink-0" />,
-          url: "#",
+          url: "/audit-logs",
         },
       ],
     },
+    //DOCUMENTATION
     {
       title: "Docs",
-      url: "#",
+      url: "/Docs",
     },
+
   ],
+
 }: Navbar1Props) => {
   return (
     <section>
         <nav>
           <div className="hidden lg:flex items-center justify-between px-8 py-4">
-            <a href={logo.url} className="flex items-center gap-2">
+            <Link to={logo.url} className="flex items-center gap-2">
               <img src={logo.src} className="w-8" alt={logo.alt} />
               <span className="text-lg font-bold">{logo.title}</span>
-            </a>
+            </Link>
             <NavigationMenu>
               <NavigationMenuList>
                 {menu.map((item) => renderMenuItem(item))}
@@ -174,9 +191,9 @@ const renderMenuItem = (item: MenuItem) => {
             <NavigationMenuLink>
               {item.items.map((subItem) => (
                 <li key={subItem.title}>
-                  <a
+                  <Link
                     className="flex select-none gap-4 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
-                    href={subItem.url}
+                    to={subItem.url}
                   >
                     {subItem.icon}
                     <div>
@@ -189,7 +206,7 @@ const renderMenuItem = (item: MenuItem) => {
                         </p>
                       )}
                     </div>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </NavigationMenuLink>
@@ -200,13 +217,13 @@ const renderMenuItem = (item: MenuItem) => {
   }
 
   return (
-    <a
+    <Link
       key={item.title}
       className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-accent-foreground"
-      href={item.url}
+      to={item.url}
     >
       {item.title}
-    </a>
+    </Link>
   );
 };
 
@@ -219,10 +236,10 @@ const renderMobileMenuItem = (item: MenuItem) => {
         </AccordionTrigger>
         <AccordionContent className="mt-2">
           {item.items.map((subItem) => (
-            <a
+            <Link
               key={subItem.title}
               className="flex select-none gap-4 rounded-md p-3 leading-none outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
-              href={subItem.url}
+              to={subItem.url}
             >
               {subItem.icon}
               <div>
@@ -233,7 +250,7 @@ const renderMobileMenuItem = (item: MenuItem) => {
                   </p>
                 )}
               </div>
-            </a>
+            </Link>
           ))}
         </AccordionContent>
       </AccordionItem>
