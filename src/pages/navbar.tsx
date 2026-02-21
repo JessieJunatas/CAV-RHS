@@ -87,6 +87,13 @@ const Navbar = ({
           icon: <BookText className="size-5 shrink-0" />,
           url: "/forms/cav",
         },
+
+        {
+          title: "SF-10 Forms",
+          description: "Streamline the creation of SF-10 forms with auto-fill capabilities.",
+          icon: <BookText className="size-5 shrink-0" />,
+          url: "/forms/sf10",
+        },
       ],
     },
     //INFORMATION
@@ -115,6 +122,11 @@ const Navbar = ({
       title: "Docs",
       url: "/Docs",
     },
+
+    { title: 
+      "Login",
+       url: "/login" 
+      },
 
   ],
 
