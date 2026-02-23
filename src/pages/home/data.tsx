@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   Card,
@@ -13,6 +14,7 @@ interface DataCardProps {
   title: string
   value: string
   description: string
+  onDelete?: (id: number) => void
 }
 
 export default function DataCard({
@@ -24,9 +26,25 @@ export default function DataCard({
 
   const navigate = useNavigate()
 
-  const handleDelete = () => {
-    console.log("Deleting ID:", id)
-    // call for API later
+  const handleDelete = async () => {
+    const confirmDelete = confirm("Archive this record?")
+    if (!confirmDelete) return
+
+    const { data, error } = await supabase
+    .from("cav_forms")
+    .update({ is_archived: true })
+    .eq("id", id)
+    .select()
+
+    console.log("Updated rows:", data)
+
+    if (error) {
+      alert("Failed to archive: " + error.message)
+      return
+    }
+
+    alert("Record archived successfully!")
+    window.location.reload()
   }
 
   return (
@@ -52,30 +70,19 @@ export default function DataCard({
 
           <CardFooter className="mt-auto flex items-center justify-between gap-4 p-0">
             <span className="text-sm text-muted-foreground">
-              Last modified 0 minutes ago
+              Last modified recently
             </span>
 
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => navigate(`/view/${id}`)}
-              >
+              <Button size="sm" onClick={() => navigate(`/view/${id}`)}>
                 View
               </Button>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate(`/edit/${id}`)}
-              >
+              <Button size="sm" variant="outline" onClick={() => navigate(`/edit/${id}`)}>
                 Edit
               </Button>
 
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={handleDelete}
-              >
+              <Button size="sm" variant="destructive" onClick={handleDelete}>
                 Delete
               </Button>
             </div>

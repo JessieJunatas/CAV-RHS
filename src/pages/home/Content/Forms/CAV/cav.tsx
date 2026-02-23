@@ -16,13 +16,13 @@ type CavFormData = {
   date_of_application: string
   school_year_graduated: string
   control_no: string
-  concern_full_legal_name: string
 }
 
 function CAV() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [savedFormId, setSavedFormId] = useState<string | null>(null)
+
   const [formData, setFormData] = useState<CavFormData>({
     full_legal_name: "",
     date_issued: "",
@@ -33,7 +33,6 @@ function CAV() {
     date_of_application: "",
     school_year_graduated: "",
     control_no: "",
-    concern_full_legal_name: "",
   })
 
   const fields: {
@@ -51,7 +50,6 @@ function CAV() {
     { label: "Date of Application", name: "date_of_application", type: "date" },
     { label: "School Year Graduated", name: "school_year_graduated", type: "date" },
     { label: "Control No.", name: "control_no" },
-    { label: "Concern Full Legal Name", name: "concern_full_legal_name", colSpan: "col-span-2" },
   ]
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,47 +59,46 @@ function CAV() {
     })
   }
 
- const handleSubmit = async () => {
-  try {
-    setLoading(true)
-    const { data: userData } = await supabase.auth.getUser()
-    if (!userData.user) return
+  const handleSubmit = async () => {
+    try {
+      setLoading(true)
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) return
 
-    const created = await createForm({
-      table: "cav_forms",
-      data: formData,
-      formType: 1,
-      userId: userData.user.id,
-      userEmail: userData.user.email!,
-      label: "CAV Form",
-    })
+      const created = await createForm({
+        table: "cav_forms",
+        data: formData,
+        formType: 1,
+        userId: userData.user.id,
+        userEmail: userData.user.email!,
+        label: "CAV Form",
+      })
 
-    if (!created?.id) {
-      throw new Error("Form creation failed")
+      if (!created?.id) {
+        throw new Error("Form creation failed")
+      }
+
+      setSavedFormId(created.id)
+      alert("Form successfully saved!")
+
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    setSavedFormId(created.id)
-
-    alert("Form successfully saved!")
-
-  } catch (err: any) {
-    alert(err.message)
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
-    <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-16">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-16">
       <div className="w-full max-w-6xl grid grid-cols-2 gap-12">
 
         {/* LEFT FORM CARD */}
-        <Card className="p-10 rounded-2xl shadow-sm">
+        <Card className="p-10 rounded-2xl bg-card">
           <div className="grid grid-cols-2 gap-6">
 
             {fields.map((field) => (
               <div key={field.name} className={field.colSpan ?? ""}>
-                <label className="text-sm text-zinc-600">
+                <label className="text-sm text-muted-foreground">
                   {field.label}
                 </label>
                 <Input
@@ -132,7 +129,7 @@ function CAV() {
             }
             navigate(`/forms/cav/view/${savedFormId}`)
           }}
-          className={`flex flex-col items-center justify-center p-10 rounded-2xl shadow-sm cursor-pointer transition ${
+          className={`flex flex-col items-center justify-center p-10 rounded-2xl bg-card cursor-pointer transition ${
             savedFormId
               ? "hover:shadow-lg"
               : "opacity-50 cursor-not-allowed"
@@ -146,10 +143,10 @@ function CAV() {
           </div>
 
           <div className="flex gap-4 mt-6">
-            <div className="w-4 h-4 rounded-full bg-zinc-400" />
-            <div className="w-4 h-4 rounded-full bg-zinc-300" />
-            <div className="w-4 h-4 rounded-full bg-zinc-300" />
-            <div className="w-4 h-4 rounded-full bg-zinc-300" />
+            <div className="w-4 h-4 rounded-full bg-muted-foreground/40" />
+            <div className="w-4 h-4 rounded-full bg-muted-foreground/20" />
+            <div className="w-4 h-4 rounded-full bg-muted-foreground/20" />
+            <div className="w-4 h-4 rounded-full bg-muted-foreground/20" />
           </div>
 
         </Card>
@@ -160,4 +157,3 @@ function CAV() {
 }
 
 export default CAV
-

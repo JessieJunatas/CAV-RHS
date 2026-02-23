@@ -147,7 +147,7 @@ export async function generateCavPDF(form: any) {
   fourthPage.drawText(form.school_year_completed ?? "", {
     x: 270,
     y: 570,
-    size: fontSize,
+    size: 12,
     font: Boldfont,
   })
 
@@ -165,14 +165,7 @@ export async function generateCavPDF(form: any) {
     font: Boldfont,
   })
 
-  fourthPage.drawText(name, {
-    x: 120,
-    y: 433,
-    size: fontSize,
-    font: Boldfont,
-  })
-
-
+  
   const pdfBytes: Uint8Array = await pdfDoc.save()
 
   const blob = new Blob([pdfBytes as any], {

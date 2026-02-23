@@ -77,8 +77,7 @@ function CAVPreview() {
         <p>School Year Graduated: {form.school_year_graduated}</p>
         <p>School Address: {form.school_address}</p>
         <p>Control No: {form.control_no}</p>
-        <p>Concern Full Legal Name: {form.concern_full_legal_name}</p>
-
+        
         <div className="mt-12 flex justify-end print:hidden">
           <button onClick={() => generateCavPDF(form)}
             className="bg-black text-white px-6 py-2 rounded"
