@@ -89,7 +89,7 @@ function CAV() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-16">
+    <div className="bg-background text-foreground flex items-center justify-center p-16">
       <div className="w-full max-w-6xl grid grid-cols-2 gap-12">
 
         {/* LEFT FORM CARD */}

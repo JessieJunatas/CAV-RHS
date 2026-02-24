@@ -45,7 +45,7 @@ function CAVPreview() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center">
         Loading form...
       </div>
     )
@@ -53,14 +53,14 @@ function CAVPreview() {
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-red-500">
+      <div className="flex items-center justify-center text-red-500">
         {errorMsg}
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white p-16">
+    <div className="bg-white p-16">
       <div className="max-w-4xl mx-auto border p-12">
 
         <h1 className="text-center font-bold text-xl mb-8">
