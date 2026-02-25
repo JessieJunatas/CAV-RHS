@@ -375,7 +375,7 @@ function ArchivePage() {
                           <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleRestore(record.id)}
-                            className="h-8 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                            className="h-8 text-xs rounded-lg"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                             Yes, restore it
