@@ -11,10 +11,14 @@ import {
   CircleDot, User, School, MapPin, GraduationCap,
   Calendar, Hash, ClipboardList,
 } from "lucide-react"
+import { generatePreviewUrl } from "@/utils/generateCAVpreview"
 
 function EditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [generatingPreview, setGeneratingPreview] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -38,6 +42,25 @@ function EditPage() {
     }
     fetchData()
   }, [id])
+
+  useEffect(() => {
+    if (!formData) return
+
+    let active = true
+
+    const generate = async () => {
+      setGeneratingPreview(true)
+      const url = await generatePreviewUrl(formData)
+      if (active) setPreviewUrl(url)
+      setGeneratingPreview(false)
+    }
+
+    generate()
+
+    return () => {
+      active = false
+    }
+  }, [formData])
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault() }
@@ -161,22 +184,24 @@ function EditPage() {
         )}
 
         {/* Two-col layout */}
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-2 gap-8 items-stretch">
 
-          {/* LEFT — Form */}
           <Card className="p-6 rounded-2xl bg-card">
-            <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+            <div className="flex flex-col h-full">
+              
+              <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                <InputField label="Complete Name" name="full_legal_name" value={formData.full_legal_name} onChange={handleChange} icon={<User className="h-3.5 w-3.5" />} originalValue={originalData?.full_legal_name} />
+                <InputField label="Date Issued" name="date_issued" value={formData.date_issued} onChange={handleChange} type="date" icon={<Calendar className="h-3.5 w-3.5" />} originalValue={originalData?.date_issued} />
+                <InputField label="Name of School" name="school_name" value={formData.school_name} onChange={handleChange} icon={<School className="h-3.5 w-3.5" />} originalValue={originalData?.school_name} />
+                <InputField label="School Year Completed" name="school_year_completed" value={formData.school_year_completed} onChange={handleChange} icon={<GraduationCap className="h-3.5 w-3.5" />} originalValue={originalData?.school_year_completed} />
+                <InputField label="School Address" name="school_address" value={formData.school_address} onChange={handleChange} icon={<MapPin className="h-3.5 w-3.5" />} originalValue={originalData?.school_address} />
+                <InputField label="Date of Application" name="date_of_application" value={formData.date_of_application} onChange={handleChange} type="date" icon={<ClipboardList className="h-3.5 w-3.5" />} originalValue={originalData?.date_of_application} />
+                <InputField label="School Year Graduated" name="school_year_graduated" value={formData.school_year_graduated} onChange={handleChange} type="date" icon={<GraduationCap className="h-3.5 w-3.5" />} originalValue={originalData?.school_year_graduated} />
+                <InputField label="Control No." name="control_no" value={formData.control_no} onChange={handleChange} icon={<Hash className="h-3.5 w-3.5" />} originalValue={originalData?.control_no} />
+              </div>
 
-              <InputField label="Complete Name" name="full_legal_name" value={formData.full_legal_name} onChange={handleChange} icon={<User className="h-3.5 w-3.5" />} originalValue={originalData?.full_legal_name} />
-              <InputField label="Date Issued" name="date_issued" value={formData.date_issued} onChange={handleChange} type="date" icon={<Calendar className="h-3.5 w-3.5" />} originalValue={originalData?.date_issued} />
-              <InputField label="Name of School" name="school_name" value={formData.school_name} onChange={handleChange} icon={<School className="h-3.5 w-3.5" />} originalValue={originalData?.school_name} />
-              <InputField label="School Year Completed" name="school_year_completed" value={formData.school_year_completed} onChange={handleChange} icon={<GraduationCap className="h-3.5 w-3.5" />} originalValue={originalData?.school_year_completed} />
-              <InputField label="School Address" name="school_address" value={formData.school_address} onChange={handleChange} icon={<MapPin className="h-3.5 w-3.5" />} originalValue={originalData?.school_address} />
-              <InputField label="Date of Application" name="date_of_application" value={formData.date_of_application} onChange={handleChange} type="date" icon={<ClipboardList className="h-3.5 w-3.5" />} originalValue={originalData?.date_of_application} />
-              <InputField label="School Year Graduated" name="school_year_graduated" value={formData.school_year_graduated} onChange={handleChange} type="date" icon={<GraduationCap className="h-3.5 w-3.5" />} originalValue={originalData?.school_year_graduated} />
-              <InputField label="Control No." name="control_no" value={formData.control_no} onChange={handleChange} icon={<Hash className="h-3.5 w-3.5" />} originalValue={originalData?.control_no} />
-
-              <div className="col-span-2 flex items-center justify-between pt-2 border-t border-border/40 mt-1">
+              {/* Pinned to bottom */}
+              <div className="mt-auto pt-4 border-t border-border/40 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground/50">
                   {isDirty ? "You have unsaved changes" : "All changes saved"}
                 </p>
@@ -199,31 +224,39 @@ function EditPage() {
             </div>
           </Card>
 
-          {/* RIGHT — Avatar preview */}
-          <Card className="rounded-2xl bg-card overflow-hidden flex flex-col items-center justify-center gap-4 p-8">
-            <img
-              src={`https://avatar.vercel.sh/${encodeURIComponent(formData.full_legal_name || "unknown")}`}
-              alt={formData.full_legal_name}
-              className="w-full h-70 rounded-3xl object-cover shadow-lg ring-1 ring-border transition-all duration-500"
-            />
-            <div className="text-center">
-              <p className="font-semibold text-base leading-snug">
-                {formData.full_legal_name || (
-                  <span className="italic text-muted-foreground/40 font-normal">No name</span>
-                )}
+          <Card className="flex-1 rounded-2xl bg-card overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+                Document Preview
               </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {formData.control_no || (
-                  <span className="italic text-muted-foreground/40 text-xs">No control no.</span>
-                )}
-              </p>
+              {isDirty && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20"
+                >
+                  Unsaved changes
+                </Badge>
+              )}
             </div>
-            {isDirty && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
-                <CircleDot className="h-2.5 w-2.5" />
-                Unsaved changes
-              </div>
-            )}
+
+            {/* Preview area */}
+            <div className="relative h-[520px] bg-muted/30">
+              {generatingPreview && (
+                <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <p className="text-sm">Generating preview…</p>
+                </div>
+              )}
+
+              {previewUrl && !generatingPreview && (
+                <iframe
+                  src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                  className="h-full w-full border-0"
+                  title="CAV PDF Preview"
+                />
+              )}
+            </div>
           </Card>
 
         </div>
@@ -260,7 +293,7 @@ function InputField({ label, name, value, onChange, type = "text", icon, origina
 /* ── Loading skeleton ── */
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-background p-10">
+    <div className="bg-background p-10">
       <div className="w-full max-w-7xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-20 rounded-lg" />

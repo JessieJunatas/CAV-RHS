@@ -60,7 +60,7 @@ function CAVPreview() {
   }
 
   return (
-    <div className="bg-white p-16">
+    <div className="p-16">
       <div className="max-w-4xl mx-auto border p-12">
 
         <h1 className="text-center font-bold text-xl mb-8">

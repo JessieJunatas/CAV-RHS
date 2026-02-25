@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,27 +23,43 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Archive, Eye, RotateCcw, Clock, Hash, Inbox } from "lucide-react"
+import {
+  Archive, Eye, RotateCcw, Clock, Hash,
+  Inbox, Trash2, CheckCircle2, TriangleAlert,
+} from "lucide-react"
+
+type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
 function ArchivePage() {
   const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [toasts, setToasts] = useState<Toast[]>([])
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const fetchArchived = async () => {
-      const { data, error } = await supabase
-        .from("cav_forms")
-        .select("*")
-        .eq("is_archived", true)
-        .order("created_at", { ascending: false })
+  const pushToast = (type: Toast["type"], title: string, message: string) => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, type, title, message }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500)
+  }
 
-      if (!error && data) setRecords(data)
-      setLoading(false)
-    }
+  useEffect(() => {
     fetchArchived()
   }, [])
+
+  const fetchArchived = async () => {
+    const { data, error } = await supabase
+      .from("cav_forms")
+      .select("*")
+      .eq("is_archived", true)
+      .order("created_at", { ascending: false })
+
+    if (!error && data) setRecords(data)
+    setLoading(false)
+  }
 
   const handleRestore = async (id: number) => {
     setRestoringId(id)
@@ -51,13 +69,63 @@ function ArchivePage() {
       .eq("id", id)
 
     if (error) {
-      alert("Restore failed: " + error.message)
+      pushToast("error", "Restore failed", error.message)
       setRestoringId(null)
       return
     }
 
-    setRecords((prev) => prev.filter((r) => r.id !== id))
+    setRecords(prev => prev.filter(r => r.id !== id))
+    setSelected(prev => { const s = new Set(prev); s.delete(id); return s })
+    pushToast("success", "Record restored", "The record is now visible on the main dashboard.")
     setRestoringId(null)
+  }
+
+  const handleDelete = async (id: number) => {
+    setDeletingId(id)
+    const { error } = await supabase.from("cav_forms").delete().eq("id", id)
+
+    if (error) {
+      pushToast("error", "Delete failed", error.message)
+      setDeletingId(null)
+      return
+    }
+
+    setRecords(prev => prev.filter(r => r.id !== id))
+    setSelected(prev => { const s = new Set(prev); s.delete(id); return s })
+    pushToast("success", "Record deleted", "The record has been permanently removed.")
+    setDeletingId(null)
+  }
+
+  const handleBulkDelete = async (ids: number[]) => {
+    setBulkDeleting(true)
+    const { error } = await supabase.from("cav_forms").delete().in("id", ids)
+
+    if (error) {
+      pushToast("error", "Bulk delete failed", error.message)
+      setBulkDeleting(false)
+      return
+    }
+
+    setRecords(prev => prev.filter(r => !ids.includes(r.id)))
+    setSelected(new Set())
+    pushToast("success", `${ids.length} record${ids.length !== 1 ? "s" : ""} deleted`, "They have been permanently removed.")
+    setBulkDeleting(false)
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelected(prev => {
+      const s = new Set(prev)
+      s.has(id) ? s.delete(id) : s.add(id)
+      return s
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === records.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(records.map(r => r.id)))
+    }
   }
 
   const displayDate = (val: string) => {
@@ -66,6 +134,10 @@ function ArchivePage() {
       month: "short", day: "numeric", year: "numeric"
     }).format(new Date(val))
   }
+
+  const allSelected = records.length > 0 && selected.size === records.length
+  const someSelected = selected.size > 0
+  const selectedIds = Array.from(selected)
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -93,6 +165,95 @@ function ArchivePage() {
             )}
           </div>
 
+          {/* Bulk action bar */}
+          {!loading && records.length > 0 && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-2.5">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleSelectAll}
+                  className="rounded"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {someSelected ? `${selected.size} selected` : "Select all"}
+                </span>
+              </div>
+
+              {someSelected && (
+                <div className="flex items-center gap-2">
+                  {/* Bulk restore */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-3 gap-1.5 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500"
+                        disabled={bulkDeleting}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Restore {selected.size}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="max-w-sm">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Restore {selected.size} record{selected.size !== 1 ? "s" : ""}?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm leading-relaxed">
+                          These records will be moved back to active records and visible on the main dashboard.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="gap-2">
+                        <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="h-8 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                          onClick={async () => {
+                            for (const id of selectedIds) await handleRestore(id)
+                          }}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                          Restore all
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  {/* Bulk delete */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-3 gap-1.5 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
+                        disabled={bulkDeleting}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete {selected.size}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="max-w-sm">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selected.size} record{selected.size !== 1 ? "s" : ""}?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm leading-relaxed">
+                          This action is <span className="font-semibold text-foreground">permanent</span> and cannot be undone.
+                          {selected.size === records.length && " This will delete all archived records."}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter className="gap-2">
+                        <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="h-8 text-xs rounded-lg"
+                          onClick={() => handleBulkDelete(selectedIds)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                          Yes, delete all
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Loading */}
           {loading && (
             <div className="space-y-3">
@@ -106,6 +267,7 @@ function ArchivePage() {
                   <div className="flex gap-2">
                     <Skeleton className="h-8 w-16 rounded-lg" />
                     <Skeleton className="h-8 w-20 rounded-lg" />
+                    <Skeleton className="h-8 w-16 rounded-lg" />
                   </div>
                 </div>
               ))}
@@ -119,9 +281,7 @@ function ArchivePage() {
                 <Inbox className="h-6 w-6 text-muted-foreground/50" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">No archived records</p>
-              <p className="mt-1 text-xs text-muted-foreground/60">
-                Records you archive will appear here
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground/60">Records you archive will appear here</p>
             </div>
           )}
 
@@ -131,8 +291,19 @@ function ArchivePage() {
               {records.map((record) => (
                 <div
                   key={record.id}
-                  className="group flex items-center gap-4 rounded-xl border border-border/60 bg-card px-4 py-3.5 transition-all hover:border-border hover:shadow-sm"
+                  className={`group flex items-center gap-4 rounded-xl border bg-card px-4 py-3.5 transition-all hover:shadow-sm ${
+                    selected.has(record.id)
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border/60 hover:border-border"
+                  }`}
                 >
+                  {/* Checkbox */}
+                  <Checkbox
+                    checked={selected.has(record.id)}
+                    onCheckedChange={() => toggleSelect(record.id)}
+                    className="rounded shrink-0"
+                  />
+
                   {/* Avatar */}
                   <img
                     src={`https://avatar.vercel.sh/${encodeURIComponent(record.full_legal_name)}`}
@@ -157,6 +328,7 @@ function ArchivePage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* View */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -172,6 +344,7 @@ function ArchivePage() {
                       <TooltipContent side="bottom" className="text-xs">View record</TooltipContent>
                     </Tooltip>
 
+                    {/* Restore */}
                     <AlertDialog>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -202,10 +375,50 @@ function ArchivePage() {
                           <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleRestore(record.id)}
-                            className="h-8 text-xs rounded-lg bg-background text-foreground"
+                            className="h-8 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                             Yes, restore it
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    {/* Delete */}
+                    <AlertDialog>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-3 gap-1.5 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-white hover:border-destructive transition-colors"
+                              disabled={deletingId === record.id}
+                            >
+                              <Trash2 className={`h-3.5 w-3.5 ${deletingId === record.id ? "animate-pulse" : ""}`} />
+                              {deletingId === record.id ? "Deleting…" : "Delete"}
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">Permanently delete</TooltipContent>
+                      </Tooltip>
+
+                      <AlertDialogContent className="max-w-sm">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-base">Delete this record?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-sm leading-relaxed">
+                            <span className="font-medium text-foreground">"{record.full_legal_name}"</span> will be
+                            permanently deleted. This action <span className="font-semibold text-foreground">cannot be undone</span>.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="gap-2">
+                          <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(record.id)}
+                            className="h-8 text-xs rounded-lg"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Yes, delete it
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -217,6 +430,32 @@ function ArchivePage() {
           )}
 
         </div>
+      </div>
+
+      {/* Toast stack */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {toasts.map((toast) =>
+          toast.type === "error" ? (
+            <Alert
+              key={toast.id}
+              variant="destructive"
+              className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg"
+            >
+              <TriangleAlert className="h-4 w-4" />
+              <AlertTitle>{toast.title}</AlertTitle>
+              <AlertDescription>{toast.message}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert
+              key={toast.id}
+              className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{toast.title}</AlertTitle>
+              <AlertDescription>{toast.message}</AlertDescription>
+            </Alert>
+          )
+        )}
       </div>
     </TooltipProvider>
   )

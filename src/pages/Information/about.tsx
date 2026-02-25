@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 
 export default function About() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-6 py-14 space-y-16">
 
         {/* Hero */}

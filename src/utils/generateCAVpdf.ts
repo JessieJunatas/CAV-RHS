@@ -30,7 +30,7 @@ function formatFullDateParts(dateString: string) {
     }
   }
 
-  const sentence = `${getOrdinal(day)} day     ${month}   ${year}`
+  const sentence = `${getOrdinal(day)} day        ${month}        ${year}`
 
   return { sentence }
 }
@@ -60,7 +60,15 @@ export async function generateCavPDF(form: any) {
   const firstPage = pages[0]
 
   firstPage.drawText(name, {
-    x: 110,
+    x: 340,
+    y: 645,
+    size: fontSize,
+    font: Boldfont,
+    color: rgb(0, 0, 0),
+  })
+
+  firstPage.drawText(name, {
+    x: 120,
     y: 493,
     size: fontSize,
     font: Boldfont,
@@ -70,7 +78,7 @@ export async function generateCavPDF(form: any) {
   firstPage.drawText(sentence, {
     x: 291,
     y: 505,
-    size: 12,
+    size: 10,
     font: Boldfont,
   })
 
@@ -99,7 +107,7 @@ export async function generateCavPDF(form: any) {
   })
 
   thirdPage.drawText(name, {
-    x: 181,
+    x: 180,
     y: 697,
     size: fontSize,
     font: Boldfont,
@@ -159,9 +167,9 @@ export async function generateCavPDF(form: any) {
   })
 
   fourthPage.drawText(sentence, {
-    x: 285,
+    x: 291,
     y: 450,
-    size: 12,
+    size: 10,
     font: Boldfont,
   })
 
