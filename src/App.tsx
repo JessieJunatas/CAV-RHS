@@ -9,7 +9,7 @@ import FormRouter from './pages/home/Content/Forms/FormRouter'
 import CAVPreview from './pages/home/Content/Forms/CAV/CAVpreview'
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 import ProtectedRoute from './components/route/route'
-import Archive from "./pages/archive/archive"
+import ArchivePage from "./pages/archive/archive"
 import About from './pages/Information/about'
 import { Heart } from 'lucide-react'
 import SignupPage from './pages/SignupPage/signup'
@@ -29,7 +29,7 @@ function Layout() {
           <Route path="/edit/:id" element={<EditPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/archive" element={<ProtectedRoute><Archive /></ProtectedRoute>} />
+          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
           <Route path="/forms/cav/view/:id" element={<ProtectedRoute><CAVPreview /></ProtectedRoute>} />
           <Route path="/forms/:formType" element={<ProtectedRoute><FormRouter /></ProtectedRoute>} />
