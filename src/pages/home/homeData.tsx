@@ -117,7 +117,6 @@ const Home: React.FC = () => {
             </div>
           )}
 
-          {/* Records */}
           {!loading && forms.map((form) => (
             <DataCard
               key={form.id}
