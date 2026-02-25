@@ -379,7 +379,7 @@ function CAV() {
             <Alert
               key={toast.id}
               variant="destructive"
-              className="w-full animate-in slide-in-from-bottom-2 fade-in shadow-lg"
+              className="w-100 animate-in slide-in-from-bottom-2 fade-in shadow-lg"
             >
               <TriangleAlert className="h-4 w-4" />
               <AlertTitle>{toast.title}</AlertTitle>
