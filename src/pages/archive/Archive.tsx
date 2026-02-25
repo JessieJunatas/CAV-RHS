@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { logAudit } from "@/utils/audit-log"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,25 +41,39 @@ function ArchivePage() {
       if (!error && data) setRecords(data)
       setLoading(false)
     }
+
     fetchArchived()
   }, [])
 
-  const handleRestore = async (id: number) => {
-    setRestoringId(id)
-    const { error } = await supabase
-      .from("cav_forms")
-      .update({ is_archived: false })
-      .eq("id", id)
+  const handleRestore = async (id: number, fullName: string) => {
+  setRestoringId(id)
 
-    if (error) {
-      alert("Restore failed: " + error.message)
-      setRestoringId(null)
-      return
-    }
+  const { error } = await supabase
+    .from("cav_forms")
+    .update({ is_archived: false })
+    .eq("id", id)
 
-    setRecords((prev) => prev.filter((r) => r.id !== id))
+  if (error) {
+    alert("Restore failed: " + error.message)
     setRestoringId(null)
+    return
   }
+
+  try {
+  await logAudit({
+    action: "restored",
+    event: `Restored archived form for ${fullName}`,
+    recordId: id.toString(),
+    
+  })
+  } 
+  catch (err: any) {
+    console.error("Audit log failed:", err)
+  }
+
+  setRecords((prev) => prev.filter((r) => r.id !== id))
+  setRestoringId(null)
+}
 
   const displayDate = (val: string) => {
     if (!val) return "Unknown date"
@@ -201,7 +216,7 @@ function ArchivePage() {
                         <AlertDialogFooter className="gap-2">
                           <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleRestore(record.id)}
+                            onClick={() => handleRestore(record.id, record.full_legal_name)}
                             className="h-8 text-xs rounded-lg bg-background text-foreground"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />

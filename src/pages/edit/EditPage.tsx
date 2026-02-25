@@ -6,6 +6,8 @@ import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { logAudit } from "@/utils/audit-log"
+import { getChangedFields } from "@/utils/getChangedFields"
 import {
   ArrowLeft, Save, CheckCircle2, AlertCircle,
   CircleDot, User, School, MapPin, GraduationCap,
@@ -29,7 +31,11 @@ function EditPage() {
     const fetchData = async () => {
       if (!id) return
       const { data, error } = await supabase
-        .from("cav_forms").select("*").eq("id", id).single()
+        .from("cav_forms")
+        .select("*")
+        .eq("id", id)
+        .single()
+
       if (!error && data) {
         setFormData(data)
         setOriginalData(data)
@@ -50,21 +56,46 @@ function EditPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleUpdate = async () => {
-    if (!id) return
-    setSaving(true)
-    setError(null)
-    const { error } = await supabase.from("cav_forms").update(formData).eq("id", id)
-    if (error) {
-      setError(error.message)
-      setSaving(false)
-      return
-    }
-    setOriginalData(formData)
+ const handleUpdate = async () => {
+  if (!id) return
+  setSaving(true)
+  setError(null)
+
+  const { oldData, newData } = getChangedFields(originalData, formData)
+
+  if (!newData) {
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => navigate("/"), 900)
+    return
   }
+
+  const { error } = await supabase
+    .from("cav_forms")
+    .update(formData)
+    .eq("id", id)
+
+  if (error) {
+    setError(error.message)
+    setSaving(false)
+    return
+  }
+
+  try {
+    await logAudit({
+      action: "updated",
+      event: `Updated CAV form for ${formData.full_legal_name}`,
+      recordId: id as string,
+      oldData,
+      newData,
+    })
+  } catch (err) {
+    console.error("Audit log failed:", err)
+  }
+
+  setOriginalData(formData)
+  setSaving(false)
+  setSaved(true)
+  setTimeout(() => navigate("/"), 900)
+}
 
   const handleDiscard = () => {
     setFormData(originalData)

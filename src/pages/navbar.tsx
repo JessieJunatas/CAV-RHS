@@ -8,7 +8,7 @@ import {
   ChevronRight,
   ArchiveRestore,
   LogOut,
-  User as UserIcon,
+  User as _UserIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { JSX } from "react";

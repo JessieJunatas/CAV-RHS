@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Eye, Pencil, Archive, Clock } from "lucide-react"
+import { logAudit } from "@/utils/audit-log"
 
 /* ────────────────────────────────────────────
    Skeleton — matches DataCard layout exactly
@@ -106,6 +107,18 @@ export default function DataCard({
       alert("Failed to archive: " + error.message)
       return
     }
+
+    try {
+      await logAudit({
+        action: "archived",
+        event: `Archived form for ${title}`,
+        recordId: id.toString(),
+        
+      })
+      } 
+      catch (err: any) {
+        console.error("Audit log failed:", err)
+      }
 
     onDelete?.(id)
     window.location.reload()

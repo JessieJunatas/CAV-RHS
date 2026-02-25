@@ -5,6 +5,7 @@ import { createForm } from "../../CRUD"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
+import { logAudit } from "@/utils/audit-log"
 
 type CavFormData = {
   full_legal_name: string
@@ -75,8 +76,19 @@ function CAV() {
       })
 
       if (!created?.id) {
-        throw new Error("Form creation failed")
-      }
+      throw new Error("Form creation failed")
+    }
+
+    try {
+    await logAudit({
+      action: "created",
+      event: `Created CAV form for ${formData.full_legal_name}`,
+      recordId: created.id,
+      newData: formData,
+    })
+  } catch (err: any) {
+    console.error("Audit log failed:", err)
+  }
 
       setSavedFormId(created.id)
       alert("Form successfully saved!")
