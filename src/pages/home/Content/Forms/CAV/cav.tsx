@@ -13,6 +13,7 @@ import {
   Hash, Send, CheckCircle2, FileText,
   AlertCircle, Download, TriangleAlert,
 } from "lucide-react"
+import { logAudit } from "@/utils/audit-log"
 
 type CavFormData = {
   full_legal_name: string
@@ -193,7 +194,20 @@ function CAV() {
         label: "CAV Form",
       })
 
-      if (!created?.id) throw new Error("Form creation failed")
+      if (!created?.id) {
+      throw new Error("Form creation failed")
+    }
+
+    try {
+    await logAudit({
+      action: "created",
+      event: `Created CAV form for ${formData.full_legal_name}`,
+      recordId: created.id,
+      newData: formData,
+    })
+  } catch (err: any) {
+    console.error("Audit log failed:", err)
+  }
 
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
