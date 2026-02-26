@@ -37,37 +37,37 @@ Staff can fill out CAV forms, instantly preview the auto-filled official 4-page 
 
 ---
 
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-**📋 CAV Form**
+**▣ CAV Form**
 Fill and submit CAV records with real-time field validation, progress tracking, and a live PDF preview before download.
 
-**📄 PDF Generation**
+**▤ PDF Generation**
 Auto-fills a 4-page official CAV template using `pdf-lib` with coordinate-precise text placement and dynamic font sizing.
 
-**🔍 Records Dashboard**
+**◎ Records Dashboard**
 Paginated, searchable, and sortable data table showing all submitted records with quick access to view, edit, or archive.
 
-**📦 Archive & Restore**
+**▦ Archive & Restore**
 Soft-archive records to keep history clean. Restore or permanently delete — individually or in bulk with multi-select.
 
 </td>
 <td width="50%">
 
-**🔐 Authentication**
+**◈ Authentication**
 Supabase-powered login with RLS policies ensuring all authenticated staff share access to the same global dataset.
 
-**📝 Audit Logging**
+**◷ Audit Logging**
 Every create, update, restore, and delete action is logged with the record ID and relevant data for accountability.
 
-**🌙 Dark Mode**
+**◑ Dark Mode**
 Full light/dark theme support across every component, including the custom date picker and PDF preview panel.
 
-**📅 Smart Date Picker**
+**◻ Smart Date Picker**
 Custom calendar with dedicated month and year grid navigation — no native browser picker, fully themed.
 
 </td>
@@ -76,24 +76,24 @@ Custom calendar with dedicated month and year grid navigation — no native brow
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
-| | Technology | Purpose |
+| # | Technology | Purpose |
 |---|---|---|
-| ⚛️ | **React 18 + TypeScript** | UI framework |
-| ⚡ | **Vite** | Build tool with HMR |
-| 🎨 | **Tailwind CSS v4** | Utility-first styling |
-| 🧩 | **shadcn/ui** | Accessible UI components |
-| 🗄️ | **Supabase** | Database, auth, and RLS |
-| 📄 | **pdf-lib** | PDF template filling & generation |
-| 🧭 | **React Router v6** | Client-side routing |
-| 📊 | **TanStack Table v8** | Headless data table with pagination |
-| 📅 | **date-fns** | Date formatting and manipulation |
-| 📦 | **Bun** | Fast package manager & runtime |
+| 01 | **React 18 + TypeScript** | UI framework |
+| 02 | **Vite** | Build tool with HMR |
+| 03 | **Tailwind CSS v4** | Utility-first styling |
+| 04 | **shadcn/ui** | Accessible UI components |
+| 05 | **Supabase** | Database, auth, and RLS |
+| 06 | **pdf-lib** | PDF template filling & generation |
+| 07 | **React Router v6** | Client-side routing |
+| 08 | **TanStack Table v8** | Headless data table with pagination |
+| 09 | **date-fns** | Date formatting and manipulation |
+| 10 | **Bun** | Fast package manager & runtime |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -156,14 +156,10 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
-├── components/
-│   ├── ui/                    # shadcn/ui + custom components
-│   │   └── date-picker.tsx    # Themed calendar date picker
-│   └── animate-ui/            # Animated button components
 ├── pages/
 │   ├── Home.tsx               # Records dashboard
 │   ├── CAV.tsx                # CAV form + live PDF preview
@@ -182,33 +178,29 @@ src/
 
 ---
 
-## 📜 CAV Template
+## CAV Template Fields
 
-Place the official 4-page CAV PDF template at:
+Place the official 4-page template at `public/CAV_Template.pdf`. The system fills the following fields:
 
-```
-public/CAV_Template.pdf
-```
-
-The system fills in the following fields across all 4 pages:
-
-| Page | Fields Filled |
+| Page | Fields |
 |---|---|
-| Page 1 | Full name (×2 placements), date sentence |
+| Page 1 | Full name ×2, date sentence |
 | Page 2 | Full name, date of application |
 | Page 3 | Control no., full name, date of application, date of transmission |
 | Page 4 | Full name, school name, address, year completed, year graduated, date sentence |
 
 ---
 
-## 👥 Authors
+## Authors
 
-Built with ❤️ by **Rex** and **Jessie** for Rizal High School's Registrar's Office.
+Built with care by **Rex** and **Jessie** — Rizal High School Registrar's Office.
 
 ---
 
 <div align="center">
 
-*Rizal High School — City of Pasig*
+```
+Rizal High School  ·  City of Pasig  ·  Registrar's Office
+```
 
 </div>
