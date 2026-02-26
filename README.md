@@ -179,19 +179,6 @@ src/
 
 ---
 
-## CAV Template Fields
-
-Place the official 4-page template at `public/CAV_Template.pdf`. The system fills the following fields:
-
-| Page | Fields |
-|---|---|
-| Page 1 | Full name ×2, date sentence |
-| Page 2 | Full name, date of application |
-| Page 3 | Control no., full name, date of application, date of transmission |
-| Page 4 | Full name, school name, address, year completed, year graduated, date sentence |
-
----
-
 ## Authors
 
 Built with care by **Rex** and **Jessie** — Rizal High School Registrar's Office.
