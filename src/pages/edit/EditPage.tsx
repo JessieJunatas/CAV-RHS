@@ -12,6 +12,7 @@ import {
   ArrowLeft, Save, CheckCircle2, AlertCircle,
   CircleDot, User, School, MapPin, GraduationCap,
   Calendar, Hash, ClipboardList,
+  Pencil,
 } from "lucide-react"
 import { generatePreviewUrl } from "@/utils/generateCAVpreview"
 
@@ -187,7 +188,12 @@ function EditPage() {
         {/* Page title */}
         <div className="mb-8">
           <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-2xl font-bold tracking-tight">Edit Form</h1>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+              <Pencil className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">
+              Edit Form
+            </h1>
             {isDirty && !saved && (
               <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wide bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
                 <CircleDot className="h-2.5 w-2.5" />

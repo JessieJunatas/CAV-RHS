@@ -240,7 +240,9 @@ function CAV() {
             <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
               New Record
             </Badge>
-            <h1 className="text-2xl font-bold tracking-tight">CAV Form</h1>
+            <h1 className="text-xl font-bold tracking-tight">
+              CAV Form
+            </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Certification, Authentication, and Verification
             </p>

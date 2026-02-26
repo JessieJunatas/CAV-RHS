@@ -64,14 +64,14 @@ const table = useReactTable({
   getFacetedUniqueValues: getFacetedUniqueValues(),
   initialState: {
     pagination: {
-      pageSize: 10,
+      pageSize: 9,
     },
   },
   autoResetPageIndex: false,
 })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <DataTableToolbar table={table} />
       <div className="rounded-md border">
         <Table>
