@@ -29,7 +29,7 @@ export default function Audit() {
 
   if (loading) {
     return (
-      <div className="">
+      <div className="px-5 pt-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
             <ScrollText className="h-5 w-5 text-muted-foreground" />

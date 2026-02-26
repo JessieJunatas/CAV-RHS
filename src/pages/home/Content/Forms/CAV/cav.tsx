@@ -418,7 +418,8 @@ function CAV() {
           ) : (
             <Alert
               key={toast.id}
-              className="w-80 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600"
+              className="w-80 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 
+              bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600"
             >
               <CheckCircle2 className="h-4 w-4" />
               <AlertTitle>{toast.title}</AlertTitle>
