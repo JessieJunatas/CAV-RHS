@@ -12,7 +12,7 @@ export async function logAudit({
 }: {
   action: AuditAction
   event: string
-  recordId: string
+  recordId: string 
   tableName?: string
   oldData?: any
   newData?: any

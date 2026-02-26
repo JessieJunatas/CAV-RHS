@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,23 +110,70 @@ export default function SignatoriesPage() {
     if (!validate()) return
     setSubmitting(true)
 
-    if (editingId) {
-      await supabase.from("signatories").update({ full_name: fullName, position }).eq("id", editingId)
+    const isEditing = !!editingId
+
+    if (isEditing) {
+      const { error } = await supabase
+        .from("signatories")
+        .update({ full_name: fullName, position })
+        .eq("id", editingId!)
+
+      if (error) {
+        pushToast("Update failed", error.message, "error")
+        setSubmitting(false)
+        return
+      }
+
       pushToast("Signatory updated", `${fullName} has been updated.`)
+
+      try {
+        await logAudit({
+          action: "updated",
+          event: `Updated signatory: ${fullName} (${position})`,
+          recordId: editingId!,
+          tableName: "signatories",
+        })
+      } catch (err) { console.error("Audit log failed:", err) }
+
       setEditingId(null)
     } else {
-      await supabase.from("signatories").insert({ full_name: fullName, position })
-      pushToast("Signatory added", `${fullName} has been added.`)
-    }
+      // ── Duplicate check ───────────────────────────────────────────
+      const { data: existing } = await supabase
+        .from("signatories")
+        .select("id")
+        .ilike("full_name", fullName.trim())
+        .single()
 
-    try {
-      await logAudit({
-        action: editingId ? "updated" : "created",
-        event: `${editingId ? "Updated" : "Added"} signatory: ${fullName} (${position})`,
-        recordId: editingId || "new",
-        tableName: "signatories",
-      })
-    } catch (err) { console.error("Audit log failed:", err) }
+      if (existing) {
+        setErrors((p) => ({ ...p, fullName: "A signatory with this name already exists." }))
+        setSubmitting(false)
+        return
+      }
+      // ─────────────────────────────────────────────────────────────
+
+      const { data: inserted, error } = await supabase
+        .from("signatories")
+        .insert({ full_name: fullName, position, is_active: true })
+        .select("id")
+        .single()
+
+      if (error) {
+        pushToast("Failed to add", error.message, "error")
+        setSubmitting(false)
+        return
+      }
+
+      pushToast("Signatory added", `${fullName} has been added.`)
+
+      try {
+        await logAudit({
+          action: "created",
+          event: `Added signatory: ${fullName} (${position})`,
+          recordId: inserted.id,
+          tableName: "signatories",
+        })
+      } catch (err) { console.error("Audit log failed:", err) }
+    }
 
     setFullName(""); setPosition(""); setErrors({})
     setSubmitting(false)
@@ -166,7 +214,6 @@ export default function SignatoriesPage() {
     <div className="bg-background text-foreground p-6 lg:p-8">
       <div className="max-w-3xl mx-auto space-y-7">
 
-        {/* Header */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
             <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
@@ -176,7 +223,6 @@ export default function SignatoriesPage() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <StatCard label="Total" value={signatories.length}
             icon={<Users className="h-5 w-5 text-muted-foreground" />}
@@ -192,7 +238,6 @@ export default function SignatoriesPage() {
           />
         </div>
 
-        {/* Form Card */}
         <Card
           id="signatory-form"
           className={`rounded-2xl transition-all duration-300 ${editingId ? "ring-2 ring-primary/30 border-primary/30" : ""}`}
@@ -290,70 +335,72 @@ export default function SignatoriesPage() {
             </CardContent>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/20">
-                    <TableHead className="pl-6 text-xs uppercase tracking-wider">Signatory</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wider">Position</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
-                    <TableHead className="text-xs uppercase tracking-wider text-right pr-6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signatories.map((s) => (
-                    <TableRow
-                      key={s.id}
-                      className={`group transition-colors ${editingId === s.id ? "bg-primary/5" : ""} ${!s.is_active ? "opacity-50" : ""}`}
-                    >
-                      <TableCell className="pl-6 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <Avatar name={s.full_name} />
-                          <span className={`font-semibold text-sm ${!s.is_active ? "line-through decoration-muted-foreground" : ""}`}>
-                            {s.full_name}
-                          </span>
-                        </div>
-                      </TableCell>
+              <ScrollArea className="h-[250px]">
+                <Table>
+                  <TableHeader className="sticky top-0 z-10 bg-background">
+                    <TableRow className="bg-muted/20">
+                      <TableHead className="pl-6 text-xs uppercase tracking-wider">Signatory</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider">Position</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider text-right pr-6">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {signatories.map((s) => (
+                      <TableRow
+                        key={s.id}
+                        className={`group transition-colors ${editingId === s.id ? "bg-primary/5" : ""} ${!s.is_active ? "opacity-50" : ""}`}
+                      >
+                        <TableCell className="pl-6 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar name={s.full_name} />
+                            <span className={`font-semibold text-sm ${!s.is_active ? "line-through decoration-muted-foreground" : ""}`}>
+                              {s.full_name}
+                            </span>
+                          </div>
+                        </TableCell>
 
-                      <TableCell className="text-sm text-muted-foreground py-3.5">{s.position}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground py-3.5">{s.position}</TableCell>
 
-                      <TableCell className="py-3.5">
-                        <Badge
-                          variant="outline"
-                          className={s.is_active
-                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"
-                            : "bg-muted text-muted-foreground border-border gap-1.5"}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${s.is_active ? "bg-emerald-500" : "bg-muted-foreground"}`} />
-                          {s.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="py-3.5 pr-6">
-                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            size="sm"
+                        <TableCell className="py-3.5">
+                          <Badge
                             variant="outline"
-                            className="h-7 px-2.5 gap-1.5 text-xs rounded-lg"
-                            onClick={() => handleEdit(s)}
+                            className={s.is_active
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"
+                              : "bg-muted text-muted-foreground border-border gap-1.5"}
                           >
-                            <Pencil className="h-3 w-3" /> Edit
-                          </Button>
-                          {s.is_active && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.is_active ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+                            {s.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="py-3.5 pr-6">
+                          <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 px-2.5 gap-1.5 text-xs rounded-lg border-amber-500/30 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-colors"
-                              onClick={() => setConfirmId(s.id)}
+                              className="h-7 px-2.5 gap-1.5 text-xs rounded-lg"
+                              onClick={() => handleEdit(s)}
                             >
-                              <Archive className="h-3 w-3" /> Deactivate
+                              <Pencil className="h-3 w-3" /> Edit
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                            {s.is_active && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2.5 gap-1.5 text-xs rounded-lg border-amber-500/30 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-colors"
+                                onClick={() => setConfirmId(s.id)}
+                              >
+                                <Archive className="h-3 w-3" /> Deactivate
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
 
               <div className="px-6 py-3 border-t bg-muted/20">
                 <p className="text-xs text-muted-foreground">
@@ -367,7 +414,6 @@ export default function SignatoriesPage() {
 
       </div>
 
-      {/* Confirm Deactivate Dialog */}
       <AlertDialog open={!!confirmId} onOpenChange={(o) => { if (!o) setConfirmId(null) }}>
         <AlertDialogContent className="max-w-sm">
           <AlertDialogHeader>
