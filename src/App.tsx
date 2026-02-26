@@ -12,7 +12,6 @@ import ProtectedRoute from './components/route/route'
 import ArchivePage from "./pages/archive/Archive"
 import About from './pages/Information/about'
 import { Heart } from 'lucide-react'
-import SignupPage from './pages/SignupPage/signup'
 import Audit from './pages/Information/audit/audit'
 
 function Layout() {
@@ -29,7 +28,6 @@ function Layout() {
           <Route path="/view/:id" element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
           <Route path="/edit/:id" element={<EditPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
           <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />

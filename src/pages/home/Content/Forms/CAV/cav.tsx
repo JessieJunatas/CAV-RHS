@@ -8,6 +8,7 @@ import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   User, Calendar, School, MapPin, GraduationCap,
   Hash, Send, CheckCircle2, FileText,
@@ -160,6 +161,11 @@ function CAV() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  const handleDateChange = (name: keyof CavFormData, value: string) => {
+    setValidationErrors([])
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
   const filledCount = Object.values(formData).filter(Boolean).length
   const totalFields = Object.keys(formData).length
   const progress = Math.round((filledCount / totalFields) * 100)
@@ -194,20 +200,18 @@ function CAV() {
         label: "CAV Form",
       })
 
-      if (!created?.id) {
-      throw new Error("Form creation failed")
-    }
+      if (!created?.id) throw new Error("Form creation failed")
 
-    try {
-    await logAudit({
-      action: "created",
-      event: `Created CAV form for ${formData.full_legal_name}`,
-      recordId: created.id,
-      newData: formData,
-    })
-  } catch (err: any) {
-    console.error("Audit log failed:", err)
-  }
+      try {
+        await logAudit({
+          action: "created",
+          event: `Created CAV form for ${formData.full_legal_name}`,
+          recordId: created.id,
+          newData: formData,
+        })
+      } catch (err: any) {
+        console.error("Audit log failed:", err)
+      }
 
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
@@ -240,9 +244,7 @@ function CAV() {
             <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
               New Record
             </Badge>
-            <h1 className="text-xl font-bold tracking-tight">
-              CAV Form
-            </h1>
+            <h1 className="text-xl font-bold tracking-tight">CAV Form</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Certification, Authentication, and Verification
             </p>
@@ -276,18 +278,29 @@ function CAV() {
                         <AlertCircle className="h-3 w-3 text-destructive ml-auto" />
                       )}
                     </label>
-                    <Input
-                      type={field.type ?? "text"}
-                      name={field.name}
-                      value={formData[field.name]}
-                      onChange={handleChange}
-                      disabled={!!savedForm}
-                      className={`h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-60 ${
-                        isMissing
-                          ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30"
-                          : "border-border/60 bg-background"
-                      }`}
-                    />
+
+                    {field.type === "date" ? (
+                      <DatePicker
+                        value={formData[field.name]}
+                        onChange={(val) => handleDateChange(field.name, val)}
+                        disabled={!!savedForm}
+                        placeholder="Pick a date"
+                        className={isMissing ? "border-destructive/60 bg-destructive/5" : ""}
+                      />
+                    ) : (
+                      <Input
+                        type="text"
+                        name={field.name}
+                        value={formData[field.name]}
+                        onChange={handleChange}
+                        disabled={!!savedForm}
+                        className={`h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-60 ${
+                          isMissing
+                            ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30"
+                            : "border-border/60 bg-background"
+                        }`}
+                      />
+                    )}
                   </div>
                 )
               })}
@@ -389,13 +402,14 @@ function CAV() {
         </div>
       </div>
 
+      {/* Toast stack */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {toasts.map((toast) =>
           toast.type === "error" ? (
             <Alert
               key={toast.id}
               variant="destructive"
-              className="w-100 animate-in slide-in-from-bottom-2 fade-in shadow-lg"
+              className="w-80 animate-in slide-in-from-bottom-2 fade-in shadow-lg"
             >
               <TriangleAlert className="h-4 w-4" />
               <AlertTitle>{toast.title}</AlertTitle>
@@ -404,7 +418,7 @@ function CAV() {
           ) : (
             <Alert
               key={toast.id}
-              className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600"
+              className="w-80 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600"
             >
               <CheckCircle2 className="h-4 w-4" />
               <AlertTitle>{toast.title}</AlertTitle>
