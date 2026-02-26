@@ -13,6 +13,7 @@ import ArchivePage from "./pages/archive/Archive"
 import About from './pages/Information/about'
 import { Heart } from 'lucide-react'
 import Audit from './pages/Information/audit/audit'
+import SignatoriesPage from './pages/Signatories/signatory'
 
 function Layout() {
   const location = useLocation()
@@ -27,6 +28,7 @@ function Layout() {
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/view/:id" element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
           <Route path="/edit/:id" element={<EditPage />} />
+          <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />

@@ -55,7 +55,7 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
 async function generatePreviewUrl(form: any): Promise<string> {
-  const existingPdfBytes = await fetch("/CAV_Template.pdf").then(res => res.arrayBuffer())
+  const existingPdfBytes = await fetch("/CAV_Format.pdf").then(res => res.arrayBuffer())
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pages = pdfDoc.getPages()
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
