@@ -90,21 +90,52 @@ const Navbar = ({
       url: "/forms",
       items: [
         {
-          title: "C.A.V Forms",
+          title: "C.A.V Forms UG",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
+
         {
-          title: "SF-10 Forms",
+          title: "C.A.V Forms K-12 ",
           description:
-            "Streamline the creation of SF-10 forms with auto-fill capabilities.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
           icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/sf10",
+          url: "/forms/cav",
         },
+
+        {
+          title: "C.A.V Forms JHS",
+          description:
+            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+          icon: <BookText className="size-4 shrink-0" />,
+          url: "/forms/cav",
+        },
+
+        {
+          title: "C.A.V Forms UG",
+          description:
+            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+          icon: <BookText className="size-4 shrink-0" />,
+          url: "/forms/cav",
+        },
+        
       ],
     },
+
+    { title: "Personel",
+      url: "/Personel",
+      items: [
+        {
+          title: "Signatories",
+      description: "Manage signatories and other personnel here.",
+      icon: <_UserIcon className="size-4 shrink-0" />,
+      url: "/signatories",
+        },
+      ],
+
+     },
     {
       title: "Information",
       url: "/information",
