@@ -4,189 +4,69 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { type Signatory } from "@/types/signatory"
 import { logAudit } from "@/utils/audit-log"
-
-// ─── cn utility ──────────────────────────────────────────────────────────────
-function cn(...classes: (string | boolean | undefined | null)[]) {
-  return classes.filter(Boolean).join(" ")
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const PlusIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-  </svg>
-)
-const PencilIcon = () => (
-  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-1.415.586H9v-2a2 2 0 01.586-1.414z" />
-  </svg>
-)
-const ArchiveIcon = () => (
-  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-  </svg>
-)
-const XIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-)
-const SpinnerIcon = () => (
-  <svg className="w-5 h-5 animate-spin text-slate-400" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-  </svg>
-)
-const UsersIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-  </svg>
-)
-const CheckIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-)
-const WarningIcon = () => (
-  <svg className="w-9 h-9 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-  </svg>
-)
-
-// ─── Confirm Dialog ───────────────────────────────────────────────────────────
-function ConfirmDialog({
-  open,
-  name,
-  onConfirm,
-  onCancel,
-}: {
-  open: boolean
-  name: string
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        onClick={onCancel}
-      />
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-sm overflow-hidden">
-        <div className="px-6 pt-8 pb-5 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-50 mb-4">
-            <WarningIcon />
-          </div>
-          <h3 className="text-base font-bold text-slate-900 mb-1.5">Deactivate Signatory?</h3>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            <span className="font-semibold text-slate-700">{name}</span> will be marked
-            inactive and hidden from CAV form selectors.
-          </p>
-        </div>
-        <div className="flex gap-2 px-6 pb-6">
-          <button
-            onClick={onCancel}
-            className="flex-1 h-9 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 h-9 rounded-lg bg-amber-500 text-sm font-medium text-white hover:bg-amber-600 transition-colors shadow-sm"
-          >
-            Yes, Deactivate
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-type Toast = { id: number; message: string; type: "success" | "error" | "info" }
-
-function ToastList({ toasts }: { toasts: Toast[] }) {
-  return (
-    <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 pointer-events-none">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={cn(
-            "flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-xl text-sm font-medium pointer-events-auto min-w-[220px]",
-            t.type === "success" && "bg-slate-900 text-white",
-            t.type === "error" && "bg-red-600 text-white",
-            t.type === "info" && "bg-sky-600 text-white"
-          )}
-        >
-          <span className="text-base leading-none">
-            {t.type === "success" ? "✓" : t.type === "error" ? "✕" : "ℹ"}
-          </span>
-          {t.message}
-        </div>
-      ))}
-    </div>
-  )
-}
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Plus, Pencil, Archive, X,
+  Users, CheckCircle2, TriangleAlert, CheckCircle,
+} from "lucide-react"
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-
-  // deterministic color from name
-  const colors = [
-    "bg-indigo-600",
-    "bg-violet-600",
-    "bg-teal-600",
-    "bg-rose-600",
-    "bg-amber-600",
-    "bg-cyan-600",
-  ]
+  const initials = name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase()
+  const colors = ["bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600", "bg-amber-600", "bg-cyan-600"]
   const color = colors[name.charCodeAt(0) % colors.length]
-
   return (
-    <div
-      className={cn(
-        "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0",
-        color
-      )}
-    >
+    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${color}`}>
       {initials || "?"}
     </div>
   )
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({
-  label,
-  value,
-  icon,
-  accent,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  accent: string
+function StatCard({ label, value, icon, className }: {
+  label: string; value: number; icon: React.ReactNode; className?: string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3.5">
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", accent)}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-xl font-bold text-slate-900 leading-none">{value}</p>
-        <p className="text-xs text-slate-500 mt-0.5 font-medium">{label}</p>
-      </div>
-    </div>
+    <Card className="rounded-2xl">
+      <CardContent className="p-4 flex items-center gap-3.5">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${className}`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-xl font-bold leading-none">{value}</p>
+          <p className="text-xs text-muted-foreground mt-0.5 font-medium">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Toast type ───────────────────────────────────────────────────────────────
+type Toast = { id: number; title: string; message: string; type: "success" | "error" | "info" }
+
 export default function SignatoriesPage() {
   const [signatories, setSignatories] = useState<Signatory[]>([])
   const [loading, setLoading] = useState(false)
@@ -200,30 +80,22 @@ export default function SignatoriesPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  // ── Toast helper ────────────────────────────────────────────────────────────
-  const addToast = (message: string, type: Toast["type"] = "success") => {
+  const pushToast = (title: string, message: string, type: Toast["type"] = "success") => {
     const id = Date.now()
-    setToasts((p) => [...p, { id, message, type }])
-    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 3500)
+    setToasts((p) => [...p, { id, title, message, type }])
+    setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4000)
   }
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
   const fetchSignatories = async () => {
     setLoading(true)
     const { data, error } = await supabase
-      .from("signatories")
-      .select("*")
-      .order("created_at", { ascending: false })
-
+      .from("signatories").select("*").order("created_at", { ascending: false })
     if (!error && data) setSignatories(data)
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchSignatories()
-  }, [])
+  useEffect(() => { fetchSignatories() }, [])
 
-  // ── Validate ─────────────────────────────────────────────────────────────────
   const validate = () => {
     const e: typeof errors = {}
     if (!fullName.trim()) e.fullName = "Full name is required."
@@ -232,26 +104,18 @@ export default function SignatoriesPage() {
     return Object.keys(e).length === 0
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-
     setSubmitting(true)
 
     if (editingId) {
-      await supabase
-        .from("signatories")
-        .update({ full_name: fullName, position: position })
-        .eq("id", editingId)
+      await supabase.from("signatories").update({ full_name: fullName, position }).eq("id", editingId)
+      pushToast("Signatory updated", `${fullName} has been updated.`)
       setEditingId(null)
-      addToast("Signatory updated successfully")
     } else {
-      await supabase.from("signatories").insert({
-        full_name: fullName,
-        position: position,
-      })
-      addToast("Signatory added successfully")
+      await supabase.from("signatories").insert({ full_name: fullName, position })
+      pushToast("Signatory added", `${fullName} has been added.`)
     }
 
     try {
@@ -261,404 +125,293 @@ export default function SignatoriesPage() {
         recordId: editingId || "new",
         tableName: "signatories",
       })
-    } catch (err: any) {
-      console.error("Audit log failed:", err)
-    }
+    } catch (err) { console.error("Audit log failed:", err) }
 
-    setFullName("")
-    setPosition("")
-    setErrors({})
+    setFullName(""); setPosition(""); setErrors({})
     setSubmitting(false)
     fetchSignatories()
   }
 
-  // ── Delete / Deactivate ───────────────────────────────────────────────────────
-  const handleDeleteConfirmed = async () => {
+  const handleDeactivateConfirmed = async () => {
     if (!confirmId) return
-    const signatory = signatories.find((s) => s.id === confirmId)
-
+    const s = signatories.find((s) => s.id === confirmId)
     await supabase.from("signatories").update({ is_active: false }).eq("id", confirmId)
 
     try {
       await logAudit({
         action: "archived",
-        event: `Deactivated signatory: ${signatory?.full_name} (${signatory?.position})`,
+        event: `Deactivated signatory: ${s?.full_name}`,
         recordId: confirmId,
         tableName: "signatories",
       })
-    } catch (err: any) {
-      console.error("Audit log failed:", err)
-    }
+    } catch (err) { console.error("Audit log failed:", err) }
 
     setConfirmId(null)
-    addToast(`${signatory?.full_name} deactivated`, "info")
+    pushToast("Signatory deactivated", `${s?.full_name} has been marked inactive.`, "info")
     fetchSignatories()
   }
 
-  // ── Edit ──────────────────────────────────────────────────────────────────────
-  const handleEdit = (signatory: Signatory) => {
-    setEditingId(signatory.id)
-    setFullName(signatory.full_name)
-    setPosition(signatory.position)
-    setErrors({})
-
-    try {
-      logAudit({
-        action: "updated",
-        event: `Editing signatory: ${signatory.full_name} (${signatory.position})`,
-        recordId: signatory.id,
-        tableName: "signatories",
-      })
-    } catch (err: any) {
-      console.error("Audit log failed:", err)
-    }
-
-    // scroll form into view smoothly
-    setTimeout(() => {
-      document.getElementById("signatory-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
-    }, 50)
+  const handleEdit = (s: Signatory) => {
+    setEditingId(s.id); setFullName(s.full_name); setPosition(s.position); setErrors({})
+    setTimeout(() => document.getElementById("signatory-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
   }
 
-  const handleCancelEdit = () => {
-    setEditingId(null)
-    setFullName("")
-    setPosition("")
-    setErrors({})
-  }
+  const handleCancelEdit = () => { setEditingId(null); setFullName(""); setPosition(""); setErrors({}) }
 
-  // ── Derived stats ─────────────────────────────────────────────────────────────
   const activeCount = signatories.filter((s) => s.is_active).length
   const inactiveCount = signatories.filter((s) => !s.is_active).length
   const confirmTarget = signatories.find((s) => s.id === confirmId)
 
   return (
-    <>
-      {/* ── Google Font ── */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
-        .font-display { font-family: 'Lora', Georgia, serif; }
-        .font-body { font-family: 'DM Sans', system-ui, sans-serif; }
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .anim-in { animation: fadeSlideIn 0.25s ease both; }
-      `}</style>
+    <div className="bg-background text-foreground p-6 lg:p-8">
+      <div className="max-w-3xl mx-auto space-y-7">
 
-      <div className="font-body min-h-screen bg-[#F5F4F0] p-6 lg:p-8">
-        <div className="max-w-3xl mx-auto space-y-7">
-
-          {/* ── Page Header ─────────────────────────────────────────────────── */}
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">
-                Records Management
-              </p>
-              <h1 className="font-display text-3xl font-bold text-slate-900 leading-tight">
-                Signatories
-              </h1>
-            </div>
-            {/* Decorative rule */}
-            <div className="hidden sm:block flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent mb-1" />
+        {/* Header */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
+              Records Management
+            </Badge>
+            <h1 className="text-2xl font-bold tracking-tight">Signatories</h1>
           </div>
+        </div>
 
-          {/* ── Stats Row ───────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-3 gap-3 anim-in">
-            <StatCard
-              label="Total"
-              value={signatories.length}
-              icon={<UsersIcon />}
-              accent="bg-slate-100 text-slate-500"
-            />
-            <StatCard
-              label="Active"
-              value={activeCount}
-              icon={<CheckIcon />}
-              accent="bg-teal-50 text-teal-600"
-            />
-            <StatCard
-              label="Inactive"
-              value={inactiveCount}
-              icon={<ArchiveIcon />}
-              accent="bg-slate-100 text-slate-400"
-            />
-          </div>
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <StatCard label="Total" value={signatories.length}
+            icon={<Users className="h-5 w-5 text-muted-foreground" />}
+            className="bg-muted"
+          />
+          <StatCard label="Active" value={activeCount}
+            icon={<CheckCircle className="h-5 w-5 text-emerald-600" />}
+            className="bg-emerald-500/10"
+          />
+          <StatCard label="Inactive" value={inactiveCount}
+            icon={<Archive className="h-5 w-5 text-muted-foreground" />}
+            className="bg-muted"
+          />
+        </div>
 
-          {/* ── Form Card ───────────────────────────────────────────────────── */}
-          <div
-            id="signatory-form"
-            className={cn(
-              "bg-white rounded-2xl border shadow-sm overflow-hidden anim-in transition-all duration-300",
-              editingId
-                ? "border-indigo-200 ring-2 ring-indigo-100"
-                : "border-slate-100"
-            )}
-          >
-            {/* Card header */}
-            <div
-              className={cn(
-                "flex items-center justify-between px-6 py-4 border-b",
-                editingId
-                  ? "bg-indigo-50 border-indigo-100"
-                  : "bg-slate-50 border-slate-100"
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={cn(
-                    "w-7 h-7 rounded-lg flex items-center justify-center",
-                    editingId ? "bg-indigo-600 text-white" : "bg-slate-900 text-white"
-                  )}
-                >
-                  {editingId ? <PencilIcon /> : <PlusIcon />}
-                </div>
-                <h2 className="font-display text-sm font-semibold text-slate-800">
-                  {editingId ? "Edit Signatory" : "Add New Signatory"}
-                </h2>
+        {/* Form Card */}
+        <Card
+          id="signatory-form"
+          className={`rounded-2xl transition-all duration-300 ${editingId ? "ring-2 ring-primary/30 border-primary/30" : ""}`}
+        >
+          <CardHeader className={`flex flex-row items-center justify-between px-6 py-4 border-b rounded-t-2xl ${editingId ? "bg-primary/5 border-primary/20" : "bg-muted/40"}`}>
+            <div className="flex items-center gap-2.5">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${editingId ? "bg-primary text-primary-foreground" : "bg-foreground text-background"}`}>
+                {editingId ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />}
               </div>
-              {editingId && (
-                <button
-                  onClick={handleCancelEdit}
-                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-slate-100"
-                >
-                  <XIcon />
-                  Cancel
-                </button>
-              )}
+              <h2 className="text-sm font-semibold">
+                {editingId ? "Edit Signatory" : "Add New Signatory"}
+              </h2>
             </div>
+            {editingId && (
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit} className="gap-1.5 text-xs text-muted-foreground">
+                <X className="h-4 w-4" /> Cancel
+              </Button>
+            )}
+          </CardHeader>
 
-            {/* Form body */}
-            <form onSubmit={handleSubmit} className="px-6 py-5">
+          <CardContent className="px-6 py-5">
+            <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-
-                {/* Full Name */}
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="fullName"
-                    className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
-                  >
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Full Name
                   </label>
-                  <input
-                    id="fullName"
-                    type="text"
+                  <Input
                     placeholder="e.g. JUAN DELA CRUZ"
                     value={fullName}
-                    onChange={(e) => {
-                      setFullName(e.target.value)
-                      setErrors((p) => ({ ...p, fullName: undefined }))
-                    }}
-                    className={cn(
-                      "h-10 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all",
-                      errors.fullName
-                        ? "border-red-400 focus:ring-red-300"
-                        : "border-slate-200 hover:border-slate-300 focus:ring-indigo-300"
-                    )}
+                    onChange={(e) => { setFullName(e.target.value); setErrors((p) => ({ ...p, fullName: undefined })) }}
+                    className={`h-9 rounded-lg text-sm ${errors.fullName ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30" : "border-border/60"}`}
                   />
-                  {errors.fullName && (
-                    <p className="text-xs text-red-500">{errors.fullName}</p>
-                  )}
+                  {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                 </div>
 
-                {/* Position */}
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="position"
-                    className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
-                  >
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Position / Title
                   </label>
-                  <input
-                    id="position"
-                    type="text"
+                  <Input
                     placeholder="e.g. Registrar"
                     value={position}
-                    onChange={(e) => {
-                      setPosition(e.target.value)
-                      setErrors((p) => ({ ...p, position: undefined }))
-                    }}
-                    className={cn(
-                      "h-10 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent transition-all",
-                      errors.position
-                        ? "border-red-400 focus:ring-red-300"
-                        : "border-slate-200 hover:border-slate-300 focus:ring-indigo-300"
-                    )}
+                    onChange={(e) => { setPosition(e.target.value); setErrors((p) => ({ ...p, position: undefined })) }}
+                    className={`h-9 rounded-lg text-sm ${errors.position ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30" : "border-border/60"}`}
                   />
-                  {errors.position && (
-                    <p className="text-xs text-red-500">{errors.position}</p>
-                  )}
+                  {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
                 </div>
               </div>
 
-              <div className="flex items-center justify-end">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={cn(
-                    "inline-flex items-center gap-2 h-9 px-5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-60 disabled:pointer-events-none",
-                    editingId
-                      ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-400"
-                      : "bg-slate-900 hover:bg-slate-700 focus:ring-slate-400"
-                  )}
-                >
+              <div className="flex justify-end">
+                <Button type="submit" disabled={submitting} size="sm" className="gap-1.5 min-w-[130px]">
                   {submitting ? (
-                    <SpinnerIcon />
+                    <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />Saving…</>
                   ) : editingId ? (
-                    <PencilIcon />
+                    <><Pencil className="h-3.5 w-3.5" />Save Changes</>
                   ) : (
-                    <PlusIcon />
+                    <><Plus className="h-3.5 w-3.5" />Add Signatory</>
                   )}
-                  {submitting ? "Saving…" : editingId ? "Save Changes" : "Add Signatory"}
-                </button>
+                </Button>
               </div>
             </form>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* ── Table Card ──────────────────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden anim-in">
-
-            {/* Table header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
-              <h2 className="font-display text-sm font-semibold text-slate-800">
-                All Signatories
-              </h2>
-              {!loading && (
-                <span className="text-xs text-slate-400 font-medium">
-                  {signatories.length} record{signatories.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-                <SpinnerIcon />
-                <p className="text-sm">Loading signatories…</p>
-              </div>
-            ) : signatories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-2 text-slate-400">
-                <UsersIcon />
-                <p className="text-sm font-medium">No signatories yet</p>
-                <p className="text-xs">Add one using the form above.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Signatory
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Position
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {signatories.map((s) => (
-                      <tr
-                        key={s.id}
-                        className={cn(
-                          "group transition-colors",
-                          editingId === s.id
-                            ? "bg-indigo-50/60"
-                            : "hover:bg-slate-50/70",
-                          !s.is_active && "opacity-50"
-                        )}
-                      >
-                        {/* Name + avatar */}
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <Avatar name={s.full_name} />
-                            <span className={cn("font-semibold text-slate-900", !s.is_active && "line-through decoration-slate-400")}>
-                              {s.full_name}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Position */}
-                        <td className="px-4 py-3.5 text-slate-500 text-sm">
-                          {s.position}
-                        </td>
-
-                        {/* Status badge */}
-                        <td className="px-4 py-3.5">
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                              s.is_active
-                                ? "bg-teal-50 text-teal-700 border-teal-200"
-                                : "bg-slate-100 text-slate-400 border-slate-200"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "w-1.5 h-1.5 rounded-full",
-                                s.is_active ? "bg-teal-500" : "bg-slate-300"
-                              )}
-                            />
-                            {s.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEdit(s)}
-                              className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                            >
-                              <PencilIcon />
-                              Edit
-                            </button>
-
-                            {s.is_active && (
-                              <button
-                                onClick={() => setConfirmId(s.id)}
-                                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-600 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                              >
-                                <ArchiveIcon />
-                                Deactivate
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        {/* Table Card */}
+        <Card className="rounded-2xl overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between px-6 py-4 border-b bg-muted/40 rounded-t-2xl">
+            <h2 className="text-sm font-semibold">All Signatories</h2>
+            {!loading && (
+              <span className="text-xs text-muted-foreground">
+                {signatories.length} record{signatories.length !== 1 ? "s" : ""}
+              </span>
             )}
+          </CardHeader>
 
-            {/* Footer */}
-            {!loading && signatories.length > 0 && (
-              <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/60">
-                <p className="text-xs text-slate-400">
-                  <span className="font-semibold text-slate-600">{activeCount}</span> active ·{" "}
-                  <span className="font-semibold text-slate-600">{inactiveCount}</span> inactive
+          {loading ? (
+            <CardContent className="p-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3 w-40 rounded" />
+                    <Skeleton className="h-3 w-24 rounded" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))}
+            </CardContent>
+          ) : signatories.length === 0 ? (
+            <CardContent className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
+              <Users className="h-8 w-8 opacity-30" />
+              <p className="text-sm font-medium">No signatories yet</p>
+              <p className="text-xs opacity-60">Add one using the form above.</p>
+            </CardContent>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/20">
+                    <TableHead className="pl-6 text-xs uppercase tracking-wider">Signatory</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider">Position</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider text-right pr-6">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {signatories.map((s) => (
+                    <TableRow
+                      key={s.id}
+                      className={`group transition-colors ${editingId === s.id ? "bg-primary/5" : ""} ${!s.is_active ? "opacity-50" : ""}`}
+                    >
+                      <TableCell className="pl-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={s.full_name} />
+                          <span className={`font-semibold text-sm ${!s.is_active ? "line-through decoration-muted-foreground" : ""}`}>
+                            {s.full_name}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-sm text-muted-foreground py-3.5">{s.position}</TableCell>
+
+                      <TableCell className="py-3.5">
+                        <Badge
+                          variant="outline"
+                          className={s.is_active
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 gap-1.5"
+                            : "bg-muted text-muted-foreground border-border gap-1.5"}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.is_active ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+                          {s.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell className="py-3.5 pr-6">
+                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 gap-1.5 text-xs rounded-lg"
+                            onClick={() => handleEdit(s)}
+                          >
+                            <Pencil className="h-3 w-3" /> Edit
+                          </Button>
+                          {s.is_active && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 gap-1.5 text-xs rounded-lg border-amber-500/30 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-colors"
+                              onClick={() => setConfirmId(s.id)}
+                            >
+                              <Archive className="h-3 w-3" /> Deactivate
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <div className="px-6 py-3 border-t bg-muted/20">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{activeCount}</span> active ·{" "}
+                  <span className="font-semibold text-foreground">{inactiveCount}</span> inactive
                 </p>
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </Card>
 
-        </div>
       </div>
 
-      {/* ── Confirm Deactivate Dialog ────────────────────────────────────────── */}
-      <ConfirmDialog
-        open={!!confirmId}
-        name={confirmTarget?.full_name ?? ""}
-        onConfirm={handleDeleteConfirmed}
-        onCancel={() => setConfirmId(null)}
-      />
+      {/* Confirm Deactivate Dialog */}
+      <AlertDialog open={!!confirmId} onOpenChange={(o) => { if (!o) setConfirmId(null) }}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate this signatory?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              <span className="font-semibold text-foreground">"{confirmTarget?.full_name}"</span> will be
+              marked inactive and hidden from CAV form selectors.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivateConfirmed}
+              className="h-8 text-xs rounded-lg"
+            >
+              Yes, Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-      {/* ── Toasts ──────────────────────────────────────────────────────────── */}
-      <ToastList toasts={toasts} />
-    </>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {toasts.map((toast) =>
+          toast.type === "error" ? (
+            <Alert key={toast.id} variant="destructive" className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg">
+              <TriangleAlert className="h-4 w-4" />
+              <AlertTitle>{toast.title}</AlertTitle>
+              <AlertDescription>{toast.message}</AlertDescription>
+            </Alert>
+          ) : toast.type === "info" ? (
+            <Alert key={toast.id} className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+              <Archive className="h-4 w-4" />
+              <AlertTitle>{toast.title}</AlertTitle>
+              <AlertDescription>{toast.message}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert key={toast.id} className="w-72 animate-in slide-in-from-bottom-2 fade-in shadow-lg border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 [&>svg]:text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>{toast.title}</AlertTitle>
+              <AlertDescription>{toast.message}</AlertDescription>
+            </Alert>
+          )
+        )}
+      </div>
+    </div>
   )
 }
