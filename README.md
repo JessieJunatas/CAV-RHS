@@ -122,31 +122,6 @@ VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-### Database Setup
-
-Run this in your **Supabase SQL Editor** to configure RLS policies for all authenticated staff:
-
-```sql
--- Drop any old restrictive policies
-DROP POLICY IF EXISTS "Allow authenticated insert" ON public.cav_forms;
-DROP POLICY IF EXISTS "Allow users to view own forms" ON public.cav_forms;
-DROP POLICY IF EXISTS "Delete" ON public.cav_forms;
-DROP POLICY IF EXISTS "Users can update their own records" ON public.cav_forms;
-
--- Open policies for all authenticated users
-CREATE POLICY "select_all" ON public.cav_forms
-  FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "insert_all" ON public.cav_forms
-  FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "update_all" ON public.cav_forms
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "delete_all" ON public.cav_forms
-  FOR DELETE TO authenticated USING (true);
-```
-
 ### Run Locally
 
 ```bash
