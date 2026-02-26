@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase"
 
-type AuditAction = "created" | "updated" | "archived" | "restored"
+type AuditAction = "created" | "updated" | "archived" | "restored" | "deleted"
 
 export async function logAudit({
   action,

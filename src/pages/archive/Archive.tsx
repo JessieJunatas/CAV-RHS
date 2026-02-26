@@ -98,13 +98,25 @@ function ArchivePage() {
   const handleDelete = async (id: number) => {
     setDeletingId(id)
     const { error } = await supabase.from("cav_forms").delete().eq("id", id)
+    const record = records.find(r => r.id === id)
+    const fullName = record?.full_legal_name ?? "Unknown"
 
     if (error) {
       pushToast("error", "Delete failed", error.message)
       setDeletingId(null)
       return
     }
-
+    
+    try {
+        await logAudit({
+          action: "deleted",
+          event: `Deleted archived form for ${fullName}`,
+          recordId: id.toString(),
+        })
+      } catch (err: any) {
+        console.error("Audit log failed:", err)
+    }
+    
     setRecords(prev => prev.filter(r => r.id !== id))
     setSelected(prev => { const s = new Set(prev); s.delete(id); return s })
     pushToast("success", "Record deleted", "The record has been permanently removed.")
