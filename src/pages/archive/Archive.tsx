@@ -27,6 +27,7 @@ import {
   Archive, Eye, RotateCcw, Clock, Hash,
   Inbox, Trash2, CheckCircle2, TriangleAlert,
 } from "lucide-react"
+import { logAudit } from "@/utils/audit-log"
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
@@ -63,6 +64,10 @@ function ArchivePage() {
 
   const handleRestore = async (id: number) => {
     setRestoringId(id)
+    
+    const record = records.find(r => r.id === id)
+    const fullName = record?.full_legal_name ?? "Unknown"
+
     const { error } = await supabase
       .from("cav_forms")
       .update({ is_archived: false })
@@ -72,6 +77,16 @@ function ArchivePage() {
       pushToast("error", "Restore failed", error.message)
       setRestoringId(null)
       return
+    }
+
+    try {
+      await logAudit({
+        action: "restored",
+        event: `Restored archived form for ${fullName}`,
+        recordId: id.toString(),
+      })
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
     }
 
     setRecords(prev => prev.filter(r => r.id !== id))
