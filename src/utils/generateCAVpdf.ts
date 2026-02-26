@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase"
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 
 // Simple formatted date (February 25, 2025)
@@ -10,6 +11,7 @@ function formatDate(date: string) {
     day: "numeric",
   })
 }
+
 // Full date in sentence format (25th day of February, 2025)
 function formatFullDateParts(dateString: string) {
   if (!dateString) return { sentence: "" }
@@ -37,12 +39,42 @@ function formatFullDateParts(dateString: string) {
 
 
 export async function generateCavPDF(form: any) {
-  const existingPdfBytes = await fetch("/CAV_Template.pdf")
+  
+  let prepareName = ""
+  let preparePosition = ""
+  let submitName = ""
+  let submitPosition = ""
+
+    if (form.prepared_by) {
+      const { data: prepData} = await supabase
+        .from("signatories")
+        .select("full_name, position")
+        .eq("id", form.prepared_by)
+        .single()
+      if (prepData) {
+        prepareName = prepData.full_name.toUpperCase()
+        preparePosition = prepData.position
+      }
+    }
+
+    if (form.submitted_by) {
+    const { data: subData } = await supabase
+      .from("signatories")
+      .select("full_name, position")
+      .eq("id", form.submitted_by)
+      .single()
+    if (subData) {
+      submitName = subData.full_name.toUpperCase()
+      submitPosition = subData.position
+    }
+  }
+  
+  const existingPdfBytes = await fetch("/CAV_Format.pdf")
     .then(res => res.arrayBuffer())
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pages = pdfDoc.getPages()
-
+  
   const Boldfont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
 
@@ -81,6 +113,47 @@ export async function generateCavPDF(form: any) {
     size: 10,
     font: Boldfont,
   })
+
+  if (prepareName) {
+    firstPage.drawText(prepareName, {
+      x: 120,
+      y: 450,
+      size: fontSize,
+      font: Boldfont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  if (preparePosition) {
+    firstPage.drawText(preparePosition, {
+      x: 120,
+      y: 435,
+      size: 10,
+      font: Boldfont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  if (submitName) {
+    firstPage.drawText(submitName, {
+      x: 350,
+      y: 450,
+      size: fontSize,
+      font: Boldfont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  if (submitPosition) {
+    firstPage.drawText(submitPosition, {
+      x: 350, 
+      y: 435,
+      size: 10,
+      font: Boldfont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
 
   const secondPage = pages[1]
   secondPage.drawText(name, {
@@ -172,6 +245,7 @@ export async function generateCavPDF(form: any) {
     size: 10,
     font: Boldfont,
   })
+
 
   
   const pdfBytes: Uint8Array = await pdfDoc.save()

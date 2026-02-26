@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect} from "react"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
 import { generateCavPDF } from "@/utils/generateCAVpdf"
@@ -26,6 +26,8 @@ type CavFormData = {
   date_of_application: string
   school_year_graduated: string
   control_no: string
+  prepared_by?: string
+  submitted_by?: string
 }
 
 const EMPTY: CavFormData = {
@@ -38,6 +40,8 @@ const EMPTY: CavFormData = {
   date_of_application: "",
   school_year_graduated: "",
   control_no: "",
+  prepared_by: "",
+  submitted_by: "",
 }
 
 const FIELD_LABELS: Record<keyof CavFormData, string> = {
@@ -50,6 +54,8 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
   date_of_application: "Date of Application",
   school_year_graduated: "School Year Graduated",
   control_no: "Control No.",
+  prepared_by: "Prepared By",
+  submitted_by: "Submitted By",
 }
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
@@ -131,6 +137,29 @@ function CAV() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [preparedOptions, setPreparedOptions] = useState<any[]>([])
+  const [submittedOptions, setSubmittedOptions] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchSignatories = async () => {
+      const { data: prepared, error: prepErr } = await supabase
+        .from("signatories")
+        .select("id, full_name, position")
+        .eq("role_type", "assistant_registrar")
+
+      const { data: submitted, error: subErr } = await supabase
+        .from("signatories")
+        .select("id, full_name, position")
+        .in("role_type", ["registrar", "principal"])
+
+      console.log("prepared:", prepared, prepErr)
+      console.log("submitted:", submitted, subErr)
+
+      setPreparedOptions(prepared || [])
+      setSubmittedOptions(submitted || [])
+    }
+    fetchSignatories()
+  }, [])
 
   const pushToast = (type: Toast["type"], title: string, message: string) => {
     const id = Date.now()
@@ -281,7 +310,7 @@ function CAV() {
 
                     {field.type === "date" ? (
                       <DatePicker
-                        value={formData[field.name]}
+                        value={formData[field.name] ?? ""}
                         onChange={(val) => handleDateChange(field.name, val)}
                         disabled={!!savedForm}
                         placeholder="Pick a date"
@@ -300,11 +329,61 @@ function CAV() {
                             : "border-border/60 bg-background"
                         }`}
                       />
+
                     )}
+                    
                   </div>
                 )
+                
               })}
             </div>
+               <div className="grid grid-cols-2 gap-x-5 gap-y-4 mt-4">
+    
+    {/* Prepared By */}
+    <div>
+      <label className="text-xs font-medium text-muted-foreground mb-1.5">
+        Prepared By
+      </label>
+      <select
+        value={formData.prepared_by}
+        onChange={(e) =>
+          setFormData(prev => ({ ...prev, prepared_by: e.target.value }))
+        }
+        disabled={!!savedForm}
+        className="w-full h-9 rounded-lg border px-2 text-sm bg-background"
+      >
+        <option value="">Select Assistant</option>
+        {preparedOptions.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.full_name} — {p.position}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Submitted By */}
+    <div>
+      <label className="text-xs font-medium text-muted-foreground mb-1.5">
+        Submitted By
+      </label>
+      <select
+        value={formData.submitted_by}
+        onChange={(e) =>
+          setFormData(prev => ({ ...prev, submitted_by: e.target.value }))
+        }
+        disabled={!!savedForm}
+        className="w-full h-9 rounded-lg border px-2 text-sm bg-background"
+      >
+        <option value="">Select Registrar / Principal</option>
+        {submittedOptions.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.full_name} — {s.position}
+          </option>
+        ))}
+      </select>
+    </div>
+
+  </div>
 
             {/* Pinned footer */}
             <div className="mt-auto pt-4 border-t border-border/40 flex items-center justify-between">

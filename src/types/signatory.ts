@@ -4,4 +4,5 @@ export interface Signatory {
   position: string
   is_active: boolean
   created_at: string
+  role_type: string
 }

@@ -195,11 +195,12 @@ export default function SignatoriesPage() {
   const [fullName, setFullName] = useState("")
   const [position, setPosition] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [errors, setErrors] = useState<{ fullName?: string; position?: string }>({})
+  const [errors, setErrors] = useState<{ fullName?: string; position?: string; roleType?: string }>({})
 
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
+  const [roleType, setRoleType] = useState<string>("assistant_registrar")
   // ── Toast helper ────────────────────────────────────────────────────────────
   const addToast = (message: string, type: Toast["type"] = "success") => {
     const id = Date.now()
@@ -228,9 +229,10 @@ export default function SignatoriesPage() {
     const e: typeof errors = {}
     if (!fullName.trim()) e.fullName = "Full name is required."
     if (!position.trim()) e.position = "Position is required."
+    if (!roleType) e.roleType = "Role type is required."
     setErrors(e)
     return Object.keys(e).length === 0
-  }
+ }
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -240,18 +242,16 @@ export default function SignatoriesPage() {
     setSubmitting(true)
 
     if (editingId) {
-      await supabase
+    await supabase
         .from("signatories")
-        .update({ full_name: fullName, position: position })
+        .update({ full_name: fullName, position, role_type: roleType })
         .eq("id", editingId)
-      setEditingId(null)
-      addToast("Signatory updated successfully")
     } else {
-      await supabase.from("signatories").insert({
+    await supabase.from("signatories").insert({
         full_name: fullName,
-        position: position,
-      })
-      addToast("Signatory added successfully")
+        position,
+        role_type: roleType,
+    })
     }
 
     try {
@@ -300,6 +300,7 @@ export default function SignatoriesPage() {
     setEditingId(signatory.id)
     setFullName(signatory.full_name)
     setPosition(signatory.position)
+    setRoleType(signatory.role_type ?? "assistant_registrar")
     setErrors({})
 
     try {
@@ -323,6 +324,7 @@ export default function SignatoriesPage() {
     setEditingId(null)
     setFullName("")
     setPosition("")
+    setRoleType("assistant_registrar")
     setErrors({})
   }
 
@@ -488,6 +490,37 @@ export default function SignatoriesPage() {
                     <p className="text-xs text-red-500">{errors.position}</p>
                   )}
                 </div>
+
+                {/* Role Type */}
+<div className="space-y-1.5 sm:col-span-2">
+  <label
+    htmlFor="roleType"
+    className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+  >
+    Role Type
+  </label>
+  <select
+    id="roleType"
+    value={roleType}
+    onChange={(e) => {
+      setRoleType(e.target.value)
+      setErrors((p) => ({ ...p, roleType: undefined }))
+    }}
+    className={cn(
+      "h-10 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:border-transparent transition-all",
+      errors.roleType
+        ? "border-red-400 focus:ring-red-300"
+        : "border-slate-200 hover:border-slate-300 focus:ring-indigo-300"
+    )}
+  >
+    <option value="assistant_registrar">Assistant Registrar — (Prepared By)</option>
+    <option value="registrar">Registrar — (Submitted By)</option>
+    <option value="principal">Principal — (Submitted By)</option>
+  </select>
+  {errors.roleType && (
+    <p className="text-xs text-red-500">{errors.roleType}</p>
+  )}
+</div>
               </div>
 
               <div className="flex items-center justify-end">
@@ -544,19 +577,12 @@ export default function SignatoriesPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100">
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Signatory
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Position
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Actions
-                      </th>
+                   <tr className="border-b border-slate-100">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Signatory</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Position</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -584,6 +610,13 @@ export default function SignatoriesPage() {
                         {/* Position */}
                         <td className="px-4 py-3.5 text-slate-500 text-sm">
                           {s.position}
+                        </td>
+                        
+                        {/* Role Type */}
+                        <td className="px-4 py-3.5">
+                            <span className="text-xs text-slate-400 capitalize">
+                                {s.role_type?.replace(/_/g, " ")}
+                            </span>
                         </td>
 
                         {/* Status badge */}
