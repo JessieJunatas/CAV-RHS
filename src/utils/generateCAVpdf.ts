@@ -72,46 +72,44 @@ export async function generateCavPDF(form: any) {
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
   let fontSize = 11
+  let minFont = 9
   const maxWidth = 190
   while (boldFont.widthOfTextAtSize(name, fontSize) > maxWidth && fontSize > 7) fontSize -= 0.5
 
-  // --- Page 1 (CAV Form 4) ---
   const p1 = pages[0]
-  drawCentered(p1, name, 391.5, 652, fontSize, boldFont)
-  drawCentered(p1, name, 179.2, 500, fontSize, boldFont)
-  drawCentered(p1, ordinal, 299, 513, 10, boldFont)
-  drawCentered(p1, month, 379.8, 513, 10, boldFont)
-  drawCentered(p1, year, 431.8, 513, 10, boldFont)
+  drawCentered(p1, name, 391.5, 645, fontSize, boldFont)
+  drawCentered(p1, name, 179.2, 494, fontSize, boldFont)
+  drawCentered(p1, ordinal, 299, 505, 10, boldFont)
+  drawCentered(p1, month, 379.8, 505, 10, boldFont)
+  drawCentered(p1, year, 431.8, 505, 10, boldFont)
   drawCentered(p1, submitName, 440, 350, fontSize, boldFont)
   drawCentered(p1, submitPosition, 440, 335, 10, boldFont)
 
-  // --- Page 2 (CAV Form 5) ---
   const p2 = pages[1]
-  drawCentered(p2, name, 194, 688, fontSize, boldFont)
-  drawCentered(p2, formatDate(form.date_of_application), 306, 757, 11, boldFont)
+  drawCentered(p2, name, 194, 679, fontSize, boldFont)
+  drawCentered(p2, formatDate(form.date_of_application), 306, 750, 11, boldFont)
   drawCentered(p2, submitName, 440, 350, fontSize, boldFont)
   drawCentered(p2, submitPosition, 440, 335, 10, boldFont)
 
-  // --- Page 3 (Transmittal table) ---
   const p3 = pages[2]
   drawCentered(p3, form.control_no, 126, 718, 10, font)
-  drawCentered(p3, name, 246, 718, fontSize, boldFont)
-  drawCentered(p3, formatDate(form.date_of_application), 392.5, 718, 10, font)
-  drawCentered(p3, formatDate(form.date_of_transmission), 499.5, 718, 10, font)
-  drawCentered(p3, prepareName, 240, 535, fontSize, boldFont)
-  drawCentered(p3, preparePosition, 240, 520, 10, boldFont)
+  drawCentered(p3, name, 236, 680, minFont, boldFont)
+  drawCentered(p3, formatDate(form.date_of_application), 378.5, 690, 11, font)
+  drawCentered(p3, formatDate(form.date_of_transmission), 499.5, 690, 11, font)
+  drawCentered(p3, prepareName, 160, 535, fontSize, boldFont)
+  drawCentered(p3, preparePosition, 155, 520, 10, boldFont)
   drawCentered(p3, submitName, 421.6, 390, fontSize, boldFont)
   drawCentered(p3, submitPosition, 421.6, 375, 10, boldFont)
 
   const p4 = pages[3]
-  drawCentered(p4, name, 328.5, 661, fontSize, boldFont)
+  drawCentered(p4, name, 328.5, 655, fontSize, boldFont)
   if (form.school_name) p4.drawText(form.school_name, { x: 270, y: 589, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
-  if (form.school_address) p4.drawText(form.school_address, { x: 270, y: 571, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
-  if (form.school_year_completed) p4.drawText(form.school_year_completed, { x: 270, y: 554, size: 11, font: boldFont, color: rgb(0, 0, 0) })
-  if (form.school_year_graduated) p4.drawText(formatDate(form.school_year_graduated), { x: 270, y: 537, size: 11, font: boldFont, color: rgb(0, 0, 0) })
-  drawCentered(p4, ordinal, 309, 433, 10, boldFont)
-  drawCentered(p4, month, 374.7, 433, 10, boldFont)
-  drawCentered(p4, year, 430.7, 433, 10, boldFont)
+  if (form.school_address) p4.drawText(form.school_address, { x: 270, y: 568, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
+  if (form.school_year_completed) p4.drawText(form.school_year_completed, { x: 270, y: 548, size: 11, font: boldFont, color: rgb(0, 0, 0) })
+  if (form.school_year_graduated) p4.drawText(formatDate(form.school_year_graduated), { x: 270, y: 532, size: 11, font: boldFont, color: rgb(0, 0, 0) })
+  drawCentered(p4, ordinal, 309, 428, 10, boldFont)
+  drawCentered(p4, month, 374.7, 428, 10, boldFont)
+  drawCentered(p4, year, 430.7, 428, 10, boldFont)
   drawCentered(p4, submitName, 421.6, 290, fontSize, boldFont)
   drawCentered(p4, submitPosition, 421.6, 275, 10, boldFont)
 

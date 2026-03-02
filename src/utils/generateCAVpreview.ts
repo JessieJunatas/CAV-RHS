@@ -59,9 +59,8 @@ export async function generatePreviewUrl(
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
   let fontSize = 11
-  let minFont = 9
-  const maxWidth = 190
-  while (boldFont.widthOfTextAtSize(name, fontSize) > maxWidth && fontSize > 7) fontSize -= 0.5
+  const maxWidth = 120
+  while (boldFont.widthOfTextAtSize(name, fontSize) > maxWidth && fontSize > 9) fontSize -= 0.5
 
   const p1 = pages[0]
   drawCentered(p1, name, 391.5, 645, fontSize, boldFont)
@@ -79,12 +78,12 @@ export async function generatePreviewUrl(
   drawCentered(p2, submitPosition, 440, 335, 10, boldFont)
 
   const p3 = pages[2]
-  drawCentered(p3, form.control_no, 126, 718, 10, font)
-  drawCentered(p3, name, 236, 680, minFont, boldFont)
+  drawCentered(p3, form.control_no, 126, 690, 11, font)
+  drawCentered(p3, name, 236, 690, fontSize, boldFont)
   drawCentered(p3, formatDate(form.date_of_application), 378.5, 690, 11, font)
   drawCentered(p3, formatDate(form.date_of_transmission), 499.5, 690, 11, font)
-  drawCentered(p3, prepareName, 160, 535, fontSize, boldFont)
-  drawCentered(p3, preparePosition, 155, 520, 10, boldFont)
+  if (prepareName) p3.drawText(prepareName, { x: 92, y: 535, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
+  drawCentered(p3, preparePosition, 150, 520, 9, boldFont)
   drawCentered(p3, submitName, 421.6, 390, fontSize, boldFont)
   drawCentered(p3, submitPosition, 421.6, 375, 10, boldFont)
 
