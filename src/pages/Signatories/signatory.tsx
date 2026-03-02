@@ -259,9 +259,6 @@ export default function SignatoriesPage() {
         >
           <CardHeader className={`flex flex-row items-center justify-between px-6 py-4 border-b rounded-t-2xl ${editingId ? "bg-primary/5 border-primary/20" : "bg-muted/40"}`}>
             <div className="flex items-center gap-2.5">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${editingId ? "bg-primary text-primary-foreground" : "bg-foreground text-background"}`}>
-                {editingId ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />}
-              </div>
               <h2 className="text-sm font-semibold">
                 {editingId ? "Edit Signatory" : "Add New Signatory"}
               </h2>

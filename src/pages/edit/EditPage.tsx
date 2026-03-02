@@ -11,8 +11,7 @@ import { getChangedFields } from "@/utils/getChangedFields"
 import {
   ArrowLeft, Save, CheckCircle2, AlertCircle,
   CircleDot, User, School, MapPin, GraduationCap,
-  Calendar, Hash, ClipboardList,
-  Pencil,
+  Calendar, Hash, ClipboardList, Pencil,
 } from "lucide-react"
 import { generatePreviewUrl } from "@/utils/generateCAVpreview"
 
@@ -22,7 +21,6 @@ function EditPage() {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState(false)
-
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -30,7 +28,30 @@ function EditPage() {
   const [formData, setFormData] = useState<any>(null)
   const [originalData, setOriginalData] = useState<any>(null)
 
+  // ← Add signatory state
+  const [preparedOptions, setPreparedOptions] = useState<any[]>([])
+  const [submittedOptions, setSubmittedOptions] = useState<any[]>([])
+
   const isDirty = JSON.stringify(formData) !== JSON.stringify(originalData)
+
+  // ← Fetch signatories on mount
+  useEffect(() => {
+    const fetchSignatories = async () => {
+      const { data: prepared } = await supabase
+        .from("signatories")
+        .select("id, full_name, position")
+        .eq("role_type", "assistant_registrar")
+
+      const { data: submitted } = await supabase
+        .from("signatories")
+        .select("id, full_name, position")
+        .in("role_type", ["registrar", "principal"])
+
+      setPreparedOptions(prepared || [])
+      setSubmittedOptions(submitted || [])
+    }
+    fetchSignatories()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,17 +78,16 @@ function EditPage() {
 
     const generate = async () => {
       setGeneratingPreview(true)
-      const url = await generatePreviewUrl(formData)
+      // ← Pass signatory options
+      const url = await generatePreviewUrl(formData, preparedOptions, submittedOptions)
       if (active) setPreviewUrl(url)
       setGeneratingPreview(false)
     }
 
     generate()
 
-    return () => {
-      active = false
-    }
-  }, [formData])
+    return () => { active = false }
+  }, [formData, preparedOptions, submittedOptions]) // ← Add to deps
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault() }
@@ -80,46 +100,46 @@ function EditPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
- const handleUpdate = async () => {
-  if (!id) return
-  setSaving(true)
-  setError(null)
+  const handleUpdate = async () => {
+    if (!id) return
+    setSaving(true)
+    setError(null)
 
-  const { oldData, newData } = getChangedFields(originalData, formData)
+    const { oldData, newData } = getChangedFields(originalData, formData)
 
-  if (!newData) {
+    if (!newData) {
+      setSaving(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from("cav_forms")
+      .update(formData)
+      .eq("id", id)
+
+    if (error) {
+      setError(error.message)
+      setSaving(false)
+      return
+    }
+
+    try {
+      await logAudit({
+        action: "updated",
+        event: `Updated CAV form for ${formData.full_legal_name}`,
+        recordId: id as string,
+        oldData,
+        newData,
+      })
+    } catch (err) {
+      console.error("Audit log failed:", err)
+    }
+
+    setOriginalData(formData)
     setSaving(false)
-    return
+    setSaved(true)
+    setTimeout(() => navigate("/"), 900)
   }
-
-  const { error } = await supabase
-    .from("cav_forms")
-    .update(formData)
-    .eq("id", id)
-
-  if (error) {
-    setError(error.message)
-    setSaving(false)
-    return
-  }
-
-  try {
-    await logAudit({
-      action: "updated",
-      event: `Updated CAV form for ${formData.full_legal_name}`,
-      recordId: id as string,
-      oldData,
-      newData,
-    })
-  } catch (err) {
-    console.error("Audit log failed:", err)
-  }
-
-  setOriginalData(formData)
-  setSaving(false)
-  setSaved(true)
-  setTimeout(() => navigate("/"), 900)
-}
 
   const handleDiscard = () => {
     setFormData(originalData)
@@ -191,9 +211,7 @@ function EditPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
               <Pencil className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">
-              Edit Form
-            </h1>
+            <h1 className="text-xl font-bold tracking-tight">Edit Form</h1>
             {isDirty && !saved && (
               <Badge variant="outline" className="text-[10px] font-semibold uppercase tracking-wide bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
                 <CircleDot className="h-2.5 w-2.5" />
@@ -225,7 +243,6 @@ function EditPage() {
 
           <Card className="p-6 rounded-2xl bg-card">
             <div className="flex flex-col h-full">
-              
               <div className="grid grid-cols-2 gap-x-5 gap-y-4">
                 <InputField label="Complete Name" name="full_legal_name" value={formData.full_legal_name} onChange={handleChange} icon={<User className="h-3.5 w-3.5" />} originalValue={originalData?.full_legal_name} />
                 <InputField label="Date Issued" name="date_issued" value={formData.date_issued} onChange={handleChange} type="date" icon={<Calendar className="h-3.5 w-3.5" />} originalValue={originalData?.date_issued} />
@@ -237,7 +254,6 @@ function EditPage() {
                 <InputField label="Control No." name="control_no" value={formData.control_no} onChange={handleChange} icon={<Hash className="h-3.5 w-3.5" />} originalValue={originalData?.control_no} />
               </div>
 
-              {/* Pinned to bottom */}
               <div className="mt-auto pt-4 border-t border-border/40 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground/50">
                   {isDirty ? "You have unsaved changes" : "All changes saved"}
@@ -257,27 +273,21 @@ function EditPage() {
                   )}
                 </Button>
               </div>
-
             </div>
           </Card>
 
           <Card className="flex-1 rounded-2xl bg-card overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-border/50 px-5 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
                 Document Preview
               </p>
               {isDirty && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20"
-                >
+                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">
                   Unsaved changes
                 </Badge>
               )}
             </div>
 
-            {/* Preview area */}
             <div className="relative h-[520px] bg-muted/30">
               {generatingPreview && (
                 <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
@@ -285,7 +295,6 @@ function EditPage() {
                   <p className="text-sm">Generating preview…</p>
                 </div>
               )}
-
               {previewUrl && !generatingPreview && (
                 <iframe
                   src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
