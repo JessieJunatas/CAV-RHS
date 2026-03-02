@@ -7,6 +7,7 @@ function FormRouter() {
   switch (formType) {
     case "cav":
       return <CAV />
+      
     default:
       return <div>Form not found</div>
   }

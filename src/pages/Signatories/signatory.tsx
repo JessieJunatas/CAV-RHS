@@ -33,6 +33,7 @@ import {
   Plus, Pencil, Archive, X,
   Users, CheckCircle2, TriangleAlert, CheckCircle,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 function Avatar({ name }: { name: string }) {
@@ -75,12 +76,14 @@ export default function SignatoriesPage() {
 
   const [fullName, setFullName] = useState("")
   const [position, setPosition] = useState("")
+  const [roleType, setRoleType] = useState<string>("assistant_registrar")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [errors, setErrors] = useState<{ fullName?: string; position?: string }>({})
+  const [errors, setErrors] = useState<{ fullName?: string; position?: string; roleType?: string }>({})
 
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
+  // ── Toast helper ─────────────────────────────────────────────────────────────
   const pushToast = (title: string, message: string, type: Toast["type"] = "success") => {
     const id = Date.now()
     setToasts((p) => [...p, { id, title, message, type }])
@@ -101,6 +104,7 @@ export default function SignatoriesPage() {
     const e: typeof errors = {}
     if (!fullName.trim()) e.fullName = "Full name is required."
     if (!position.trim()) e.position = "Position is required."
+    if (!roleType) e.roleType = "Role type is required."
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -115,7 +119,7 @@ export default function SignatoriesPage() {
     if (isEditing) {
       const { error } = await supabase
         .from("signatories")
-        .update({ full_name: fullName, position })
+        .update({ full_name: fullName, position, role_type: roleType })
         .eq("id", editingId!)
 
       if (error) {
@@ -137,7 +141,7 @@ export default function SignatoriesPage() {
 
       setEditingId(null)
     } else {
-      // ── Duplicate check ───────────────────────────────────────────
+      // ── Duplicate check ──────────────────────────────────────────────────────
       const { data: existing } = await supabase
         .from("signatories")
         .select("id")
@@ -149,11 +153,11 @@ export default function SignatoriesPage() {
         setSubmitting(false)
         return
       }
-      // ─────────────────────────────────────────────────────────────
+      // ────────────────────────────────────────────────────────────────────────
 
       const { data: inserted, error } = await supabase
         .from("signatories")
-        .insert({ full_name: fullName, position, is_active: true })
+        .insert({ full_name: fullName, position, role_type: roleType, is_active: true })
         .select("id")
         .single()
 
@@ -175,7 +179,7 @@ export default function SignatoriesPage() {
       } catch (err) { console.error("Audit log failed:", err) }
     }
 
-    setFullName(""); setPosition(""); setErrors({})
+    setFullName(""); setPosition(""); setRoleType("assistant_registrar"); setErrors({})
     setSubmitting(false)
     fetchSignatories()
   }
@@ -199,12 +203,23 @@ export default function SignatoriesPage() {
     fetchSignatories()
   }
 
+  // ── Edit ──────────────────────────────────────────────────────────────────────
   const handleEdit = (s: Signatory) => {
-    setEditingId(s.id); setFullName(s.full_name); setPosition(s.position); setErrors({})
+    setEditingId(s.id)
+    setFullName(s.full_name)
+    setPosition(s.position)
+    setRoleType(s.role_type ?? "assistant_registrar")
+    setErrors({})
     setTimeout(() => document.getElementById("signatory-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50)
   }
 
-  const handleCancelEdit = () => { setEditingId(null); setFullName(""); setPosition(""); setErrors({}) }
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setFullName("")
+    setPosition("")
+    setRoleType("assistant_registrar")
+    setErrors({})
+  }
 
   const activeCount = signatories.filter((s) => s.is_active).length
   const inactiveCount = signatories.filter((s) => !s.is_active).length
@@ -286,6 +301,37 @@ export default function SignatoriesPage() {
                   />
                   {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
                 </div>
+
+                {/* Role Type */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label
+                    htmlFor="roleType"
+                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  >
+                    Role Type
+                  </label>
+                  <select
+                    id="roleType"
+                    value={roleType}
+                    onChange={(e) => {
+                      setRoleType(e.target.value)
+                      setErrors((p) => ({ ...p, roleType: undefined }))
+                    }}
+                    className={cn(
+                      "h-9 w-full rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all",
+                      errors.roleType
+                        ? "border-destructive/60 focus:ring-destructive/30"
+                        : "border-border/60 hover:border-border focus:ring-ring"
+                    )}
+                  >
+                    <option value="assistant_registrar">Assistant Registrar — (Prepared By)</option>
+                    <option value="registrar">Registrar — (Submitted By)</option>
+                    <option value="principal">Principal — (Submitted By)</option>
+                  </select>
+                  {errors.roleType && (
+                    <p className="text-xs text-destructive">{errors.roleType}</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end">
@@ -341,6 +387,7 @@ export default function SignatoriesPage() {
                     <TableRow className="bg-muted/20">
                       <TableHead className="pl-6 text-xs uppercase tracking-wider">Signatory</TableHead>
                       <TableHead className="text-xs uppercase tracking-wider">Position</TableHead>
+                      <TableHead className="text-xs uppercase tracking-wider">Role</TableHead>
                       <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
                       <TableHead className="text-xs uppercase tracking-wider text-right pr-6">Actions</TableHead>
                     </TableRow>
@@ -361,6 +408,12 @@ export default function SignatoriesPage() {
                         </TableCell>
 
                         <TableCell className="text-sm text-muted-foreground py-3.5">{s.position}</TableCell>
+
+                        <TableCell className="py-3.5">
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {s.role_type?.replace(/_/g, " ")}
+                          </span>
+                        </TableCell>
 
                         <TableCell className="py-3.5">
                           <Badge
