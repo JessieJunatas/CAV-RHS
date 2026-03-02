@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
 import { generateCavPDF } from "@/utils/generateCAVpdf"
-import { generatePreviewUrl } from "@/utils/generateCAVpreview" // ← import from separate file now
+import { generatePreviewUrl } from "@/utils/generateCAVpreview"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
