@@ -39,7 +39,7 @@ export async function generatePreviewUrl(
         default: return n + "th"
       }
     }
-    return { sentence: `${getOrdinal(day)} day            ${month}         ${year}` }
+    return { sentence: `${getOrdinal(day)} day        ${month}        ${year}` }
   }
 
   const name = (form.full_legal_name ?? "").toUpperCase()
