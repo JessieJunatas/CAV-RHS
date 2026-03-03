@@ -332,6 +332,7 @@ export default function SignatoriesPage() {
               </div>
 
               <div className="flex justify-end">
+
                 <Button type="submit" disabled={submitting} size="sm" className="gap-1.5 min-w-[130px]">
                   {submitting ? (
                     <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />Saving…</>
@@ -340,6 +341,15 @@ export default function SignatoriesPage() {
                   ) : (
                     <><Plus className="h-3.5 w-3.5" />Add Signatory</>
                   )}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-2 gap-1.5 text-muted-foreground"
+                  onClick={handleCancelEdit}
+                >
+                  <X className="h-3.5 w-3.5" /> Delete
                 </Button>
               </div>
             </form>

@@ -113,7 +113,8 @@ export default function DataCard({
         action: "archived",
         event: `Archived form for ${title}`,
         recordId: id.toString(),
-        
+        oldData: { is_archived: false },
+        newData: { is_archived: true },
       })
       } 
       catch (err: any) {

@@ -120,7 +120,13 @@ const Navbar = ({
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
-        
+        {
+          title: "SF-10 Forms",
+          description:
+            "Retrieve and auto-complete SF-10 forms for senior high school students.",
+          icon: <BookText className="size-4 shrink-0" />,
+          url: "/forms/sf10",
+        },
       ],
     },
 
