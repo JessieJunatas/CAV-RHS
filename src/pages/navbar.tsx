@@ -90,33 +90,30 @@ const Navbar = ({
       url: "/forms",
       items: [
         {
-          title: "C.A.V Forms UG",
+          title: "C.A.V Forms UG JHS",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification of undergraduates for Junior High School.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
-
-        {
-          title: "C.A.V Forms K-12 ",
-          description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-
         {
           title: "C.A.V Forms JHS",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification of Junior High School.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
-
         {
-          title: "C.A.V Forms UG",
+          title: "C.A.V Forms UG K-12",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification of undergraduates for K-12.",
+          icon: <BookText className="size-4 shrink-0" />,
+          url: "/forms/cav",
+        },
+        {
+          title: "C.A.V Forms K-12 ",
+          description:
+            "Retrieve and auto-complete Certification, Authentication, and Verification of K-12.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
