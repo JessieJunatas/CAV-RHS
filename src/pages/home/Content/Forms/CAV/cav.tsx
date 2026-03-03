@@ -15,6 +15,13 @@ import {
   AlertCircle, Download, TriangleAlert,
 } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ChevronDown } from "lucide-react"
 
 type CavFormData = {
   full_legal_name: string
@@ -206,7 +213,7 @@ function CAV() {
             <Badge variant="outline" className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-1">
               New Record
             </Badge>
-            <h1 className="text-xl font-bold tracking-tight">CAV Form</h1>
+            <h1 className="text-xl font-bold tracking-tight">CAV Form - Junior High School Undergraduates</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               Certification, Authentication, and Verification
             </p>
@@ -274,19 +281,33 @@ function CAV() {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5">
                   Prepared By
                 </label>
-                <select
-                  value={formData.prepared_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, prepared_by: e.target.value }))}
-                  disabled={!!savedForm}
-                  className="w-full h-9 rounded-lg border px-2 text-sm bg-background"
-                >
-                  <option value="">Select Assistant</option>
-                  {preparedOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.full_name} — {p.position}
-                    </option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={!!savedForm}>
+                    <Button
+                      variant="outline"
+                      className="w-full h-9 px-2 text-sm font-normal justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className={!formData.prepared_by ? "text-muted-foreground" : ""}>
+                        {formData.prepared_by
+                          ? preparedOptions.find(p => p.id === formData.prepared_by)
+                              ? `${preparedOptions.find(p => p.id === formData.prepared_by)!.full_name} — ${preparedOptions.find(p => p.id === formData.prepared_by)!.position}`
+                              : "Select Assistant"
+                          : "Select Assistant"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]">
+                    {preparedOptions.map((p) => (
+                      <DropdownMenuItem
+                        key={p.id}
+                        onSelect={() => setFormData(prev => ({ ...prev, prepared_by: p.id }))}
+                      >
+                        {p.full_name} — {p.position}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Submitted By */}
@@ -294,19 +315,33 @@ function CAV() {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5">
                   Submitted By
                 </label>
-                <select
-                  value={formData.submitted_by}
-                  onChange={(e) => setFormData(prev => ({ ...prev, submitted_by: e.target.value }))}
-                  disabled={!!savedForm}
-                  className="w-full h-9 rounded-lg border px-2 text-sm bg-background"
-                >
-                  <option value="">Select Registrar / Principal</option>
-                  {submittedOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name} — {s.position}
-                    </option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild disabled={!!savedForm}>
+                    <Button
+                      variant="outline"
+                      className="w-full h-9 px-2 text-sm font-normal justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className={!formData.submitted_by ? "text-muted-foreground" : ""}>
+                        {formData.submitted_by
+                          ? submittedOptions.find(s => s.id === formData.submitted_by)
+                              ? `${submittedOptions.find(s => s.id === formData.submitted_by)!.full_name} — ${submittedOptions.find(s => s.id === formData.submitted_by)!.position}`
+                              : "Select Registrar / Principal"
+                          : "Select Registrar / Principal"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]">
+                    {submittedOptions.map((s) => (
+                      <DropdownMenuItem
+                        key={s.id}
+                        onSelect={() => setFormData(prev => ({ ...prev, submitted_by: s.id }))}
+                      >
+                        {s.full_name} — {s.position}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
