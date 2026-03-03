@@ -285,19 +285,22 @@ function CAV() {
                   <DropdownMenuTrigger asChild disabled={!!savedForm}>
                     <Button
                       variant="outline"
-                      className="w-full h-9 px-2 text-sm font-normal justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full h-9 px-2 text-sm font-normal justify-between overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className={!formData.prepared_by ? "text-muted-foreground" : ""}>
+                      <span className={`truncate ${!formData.prepared_by ? "text-muted-foreground" : ""}`}>
                         {formData.prepared_by
                           ? preparedOptions.find(p => p.id === formData.prepared_by)
                               ? `${preparedOptions.find(p => p.id === formData.prepared_by)!.full_name} — ${preparedOptions.find(p => p.id === formData.prepared_by)!.position}`
                               : "Select Assistant"
                           : "Select Assistant"}
                       </span>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]">
+                  <DropdownMenuContent
+                    className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+                    align="start"
+                  >
                     {preparedOptions.map((p) => (
                       <DropdownMenuItem
                         key={p.id}
@@ -319,19 +322,22 @@ function CAV() {
                   <DropdownMenuTrigger asChild disabled={!!savedForm}>
                     <Button
                       variant="outline"
-                      className="w-full h-9 px-2 text-sm font-normal justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full h-9 px-2 text-sm font-normal justify-between overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className={!formData.submitted_by ? "text-muted-foreground" : ""}>
+                      <span className={`truncate ${!formData.submitted_by ? "text-muted-foreground" : ""}`}>
                         {formData.submitted_by
                           ? submittedOptions.find(s => s.id === formData.submitted_by)
                               ? `${submittedOptions.find(s => s.id === formData.submitted_by)!.full_name} — ${submittedOptions.find(s => s.id === formData.submitted_by)!.position}`
                               : "Select Registrar / Principal"
                           : "Select Registrar / Principal"}
                       </span>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]">
+                  <DropdownMenuContent
+                    className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+                    align="start"
+                  >
                     {submittedOptions.map((s) => (
                       <DropdownMenuItem
                         key={s.id}
