@@ -52,6 +52,7 @@ export async function generatePreviewUrl(
   const sub = submittedOptions.find(s => s.id === form.submitted_by)
   const prepareName = prep?.full_name.toUpperCase() ?? ""
   const preparePosition = prep?.position ?? ""
+  const school_year_completed = (form.school_year_completed?? "").toUpperCase()
   const submitName = sub?.full_name.toUpperCase() ?? ""
   const submitPosition = sub?.position ?? ""
 
@@ -68,6 +69,7 @@ export async function generatePreviewUrl(
   drawCentered(p1, ordinal, 299, 505, 10, boldFont)
   drawCentered(p1, month, 379.8, 505, 10, boldFont)
   drawCentered(p1, year, 431.8, 505, 10, boldFont)
+  drawCentered(p1, school_year_completed, 180, 545, 10, boldFont)
   drawCentered(p1, submitName, 440, 350, fontSize, boldFont)
   drawCentered(p1, submitPosition, 440, 335, 10, boldFont)
 

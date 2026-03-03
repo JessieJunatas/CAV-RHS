@@ -67,7 +67,7 @@ export async function generateCavPDF(form: any) {
   const pages = pdfDoc.getPages()
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-
+  const school_year_completed = (form.school_year_completed?? "").toUpperCase()
   const name = (form.full_legal_name ?? "").toUpperCase()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
@@ -82,6 +82,7 @@ export async function generateCavPDF(form: any) {
   drawCentered(p1, ordinal, 299, 505, 10, boldFont)
   drawCentered(p1, month, 379.8, 505, 10, boldFont)
   drawCentered(p1, year, 431.8, 505, 10, boldFont)
+  drawCentered(p1, school_year_completed, 180, 545, 10, boldFont)
   drawCentered(p1, submitName, 440, 350, fontSize, boldFont)
   drawCentered(p1, submitPosition, 440, 335, 10, boldFont)
 
