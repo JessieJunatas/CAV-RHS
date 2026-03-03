@@ -9,6 +9,7 @@ import {
   ArchiveRestore,
   LogOut,
   User as _UserIcon,
+  FileText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { JSX } from "react";
@@ -90,39 +91,18 @@ const Navbar = ({
       url: "/forms",
       items: [
         {
-          title: "C.A.V Forms UG JHS",
-          description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of undergraduates for Junior High School.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-        {
           title: "C.A.V Forms JHS",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Junior High School.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification for Junior High School.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
         {
-          title: "C.A.V Forms UG K-12",
+          title: "C.A.V Forms K-12",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of undergraduates for K-12.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-        {
-          title: "C.A.V Forms K-12 ",
-          description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of K-12.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-        {
-          title: "SF-10 Forms",
-          description:
-            "Retrieve and auto-complete SF-10 forms for senior high school students.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/sf10",
+            "Retrieve and auto-complete Certification, Authentication, and Verification for K-12.",
+          icon: <FileText className="size-4 shrink-0" />,
+          url: "/forms/cavk12",
         },
       ],
     },

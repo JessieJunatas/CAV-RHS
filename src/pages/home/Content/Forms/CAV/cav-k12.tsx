@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
-import { generateCavPDF } from "@/utils/generateCAVpdf"
-import { generatePreviewUrl } from "@/utils/generateCAVpreview"
+import { generateCavK12PDF } from "@/utils/generateCAVK12pdf"
+import { generateK12PreviewUrl } from "@/utils/generateCAVK12preview"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,8 +21,9 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CavFormData = {
+type CavK12FormData = {
   full_legal_name: string
+  lrn: string
   date_issued: string
   date_of_transmission: string
   school_year_completed: string
@@ -38,25 +39,31 @@ type CavFormData = {
   submitted_by?: string
 }
 
-const EMPTY: CavFormData = {
-  full_legal_name: "", date_issued: "", date_of_transmission: "",
+const EMPTY: CavK12FormData = {
+  full_legal_name: "", lrn: "",
+  date_issued: "", date_of_transmission: "",
   school_year_completed: "", date_of_application: "", school_year_graduated: "",
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
   prepared_by: "", submitted_by: "",
 }
 
-const FIELD_LABELS: Record<keyof CavFormData, string> = {
-  full_legal_name: "Complete Name", date_issued: "Date Issued",
-  date_of_transmission: "Date of Transmission", school_year_completed: "School Year Completed",
-  date_of_application: "Date of Application", school_year_graduated: "School Year Graduated",
-  control_no: "Control No.", enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
+const FIELD_LABELS: Record<keyof CavK12FormData, string> = {
+  full_legal_name: "Complete Name",
+  lrn: "LRN / Reference No.",
+  date_issued: "Date Issued",
+  date_of_transmission: "Date of Transmission",
+  school_year_completed: "School Year Completed",
+  date_of_application: "Date of Application",
+  school_year_graduated: "School Year Graduated",
+  control_no: "Control No.",
+  enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
   status_graduated_sy: "Status Graduated SY",
   prepared_by: "Prepared By", submitted_by: "Submitted By",
 }
 
-const OPTIONAL: (keyof CavFormData)[] = [
+const OPTIONAL: (keyof CavK12FormData)[] = [
   "enrolled_grade",
   "enrolled_sy",
   "school_year_completed",
@@ -122,11 +129,11 @@ function StatusCard({ active, label, children }: {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function CAV() {
+export default function CAVK12() {
   const [loading, setLoading] = useState(false)
-  const [savedForm, setSavedForm] = useState<(CavFormData & { id: string }) | null>(null)
+  const [savedForm, setSavedForm] = useState<(CavK12FormData & { id: string }) | null>(null)
   const [errors, setErrors] = useState<string[]>([])
-  const [formData, setFormData] = useState<CavFormData>(EMPTY)
+  const [formData, setFormData] = useState<CavK12FormData>(EMPTY)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -150,12 +157,12 @@ export default function CAV() {
     setErrors([])
     setFormData(p => ({ ...p, [e.target.name]: e.target.value }))
   }
-  const handleDate = (name: keyof CavFormData, val: string) => {
+  const handleDate = (name: keyof CavK12FormData, val: string) => {
     setErrors([])
     setFormData(p => ({ ...p, [name]: val }))
   }
 
-  const requiredKeys = (Object.keys(EMPTY) as (keyof CavFormData)[]).filter(k => !OPTIONAL.includes(k))
+  const requiredKeys = (Object.keys(EMPTY) as (keyof CavK12FormData)[]).filter(k => !OPTIONAL.includes(k))
   const filledRequired = requiredKeys.filter(k => !!formData[k]?.trim()).length
   const progress = Math.round((filledRequired / requiredKeys.length) * 100)
 
@@ -183,18 +190,18 @@ export default function CAV() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const created = await createForm({
-        table: "cav_forms", data: formData, formType: 1,
-        userId: user.id, userEmail: user.email!, label: "CAV Form",
+        table: "cav_forms", data: formData, formType: 2,
+        userId: user.id, userEmail: user.email!, label: "CAV K-12 Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
       try {
-        await logAudit({ action: "created", event: `Created CAV form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
+        await logAudit({ action: "created", event: `Created CAV K-12 form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
       } catch (e) { console.error("Audit log failed:", e) }
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       pushToast("success", "Form submitted!", "PDF is being generated.")
       setGeneratingPreview(true)
-      const url = await generatePreviewUrl(saved, preparedOptions, submittedOptions)
+      const url = await generateK12PreviewUrl(saved, preparedOptions, submittedOptions)
       setPreviewUrl(url)
       setGeneratingPreview(false)
     } catch (e: any) {
@@ -217,7 +224,7 @@ export default function CAV() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight leading-none">CAV Form</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Junior High School — Certification, Authentication & Verification</p>
+              <p className="text-xs text-muted-foreground mt-0.5">K-12 — Certification, Authentication & Verification</p>
             </div>
           </div>
 
@@ -257,6 +264,14 @@ export default function CAV() {
                   </FieldRow>
                 </div>
 
+                {/* LRN / Reference No. — K-12 specific */}
+                <FieldRow label="LRN / Reference No." icon={<Hash className="h-3 w-3" />}
+                  error={err("LRN / Reference No.")} filled={!!formData.lrn}>
+                  <Input name="lrn" value={formData.lrn}
+                    onChange={handleChange} disabled={!!savedForm} placeholder="Learner Reference No."
+                    className={inputCls("LRN / Reference No.")} />
+                </FieldRow>
+
                 <FieldRow label="Control No." icon={<Hash className="h-3 w-3" />}
                   error={err("Control No.")} filled={!!formData.control_no}>
                   <Input name="control_no" value={formData.control_no}
@@ -265,18 +280,17 @@ export default function CAV() {
                 </FieldRow>
 
                 <FieldRow label="SY Completed" icon={<GraduationCap className="h-3 w-3" />}
-                  error={err("School Year Completed")} filled={!!formData.school_year_completed}>
+                  filled={!!formData.school_year_completed}>
                   <Input name="school_year_completed" value={formData.school_year_completed}
                     onChange={handleChange} disabled={!!savedForm} placeholder="e.g. 2023-2024"
                     className={inputCls("School Year Completed")} />
                 </FieldRow>
 
                 <FieldRow label="SY Graduated" icon={<GraduationCap className="h-3 w-3" />}
-                  error={err("School Year Graduated")} filled={!!formData.school_year_graduated}>
+                  filled={!!formData.school_year_graduated}>
                   <DatePicker value={formData.school_year_graduated}
                     onChange={v => handleDate("school_year_graduated", v)}
-                    disabled={!!savedForm} placeholder="Pick date"
-                    className={err("School Year Graduated") ? "border-destructive/50 bg-destructive/5" : ""} />
+                    disabled={!!savedForm} placeholder="Pick date" />
                 </FieldRow>
               </div>
             </SectionBlock>
@@ -481,12 +495,12 @@ export default function CAV() {
                 )}
                 {previewUrl && !generatingPreview && (
                   <iframe src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                    className="absolute inset-0 h-full w-full border-0" title="CAV PDF Preview" />
+                    className="absolute inset-0 h-full w-full border-0" title="CAV K-12 PDF Preview" />
                 )}
               </div>
             </div>
 
-            <Button onClick={() => savedForm && generateCavPDF(savedForm)}
+            <Button onClick={() => savedForm && generateCavK12PDF(savedForm)}
               disabled={!savedForm || generatingPreview} variant="outline"
               className="w-full h-10 gap-2 rounded-xl text-sm">
               <Download className="h-4 w-4" />

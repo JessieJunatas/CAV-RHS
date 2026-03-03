@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import HeroSection from "./hero"
 import DataCard, { DataCardSkeleton } from "./data"
 import { X } from "lucide-react"
+import { getFormTypeLabel } from "@/utils/formTypeUtils"
 
 interface CavForm {
   id: number
@@ -21,14 +22,6 @@ const Home: React.FC = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const searchQuery = searchParams.get("search") ?? ""
-
-  const getFormTitle = (type: number) => {
-    switch (type) {
-      case 1: return "Certification, Authentication, and Verification (CAV)"
-      case 2: return "SF10 Form"
-      default: return "Unknown Form"
-    }
-  }
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -65,7 +58,6 @@ const Home: React.FC = () => {
 
       <div className="px-6 py-4 flex flex-col gap-5">
 
-        {/* Search result banner */}
         {searchQuery && (
           <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-4 py-2.5">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -87,10 +79,7 @@ const Home: React.FC = () => {
           </div>
         )}
 
-        {/* Cards grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-5">
-
-          {/* Loading skeletons */}
           {loading && (
             <>
               <DataCardSkeleton />
@@ -100,7 +89,6 @@ const Home: React.FC = () => {
             </>
           )}
 
-          {/* Empty state */}
           {!loading && forms.length === 0 && (
             <div className="col-span-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
               <p className="text-sm font-medium text-muted-foreground">
@@ -121,7 +109,8 @@ const Home: React.FC = () => {
             <DataCard
               key={form.id}
               id={form.id}
-              title={getFormTitle(form.form_type)}
+              // ← now uses the shared util
+              title={getFormTypeLabel(form.form_type)}
               value={form.full_legal_name}
               description={`Control No: ${form.control_no}`}
               modifiedAt={form.updated_at ?? form.created_at}
