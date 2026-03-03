@@ -93,11 +93,11 @@ export async function generateCavPDF(form: any) {
   drawCentered(p2, submitPosition, 440, 335, 10, boldFont)
 
   const p3 = pages[2]
-  drawCentered(p3, form.control_no, 126, 718, 10, font)
+  drawCentered(p3, form.control_no, 126, 690, 11, font)
   drawCentered(p3, name, 236, 680, minFont, boldFont)
   drawCentered(p3, formatDate(form.date_of_application), 378.5, 690, 11, font)
   drawCentered(p3, formatDate(form.date_of_transmission), 499.5, 690, 11, font)
-  drawCentered(p3, prepareName, 160, 535, fontSize, boldFont)
+  drawCentered(p3, prepareName, 155, 535, fontSize, boldFont)
   drawCentered(p3, preparePosition, 155, 520, 10, boldFont)
   drawCentered(p3, submitName, 421.6, 390, fontSize, boldFont)
   drawCentered(p3, submitPosition, 421.6, 375, 10, boldFont)
