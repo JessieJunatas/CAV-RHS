@@ -59,7 +59,7 @@ export const auditColumns: ColumnDef<AuditLog>[] = [
           : action === "updated"
           ? "secondary"
           : action === "archived"
-          ? "outline"
+          ? "destructive"
           : action === "deleted"
           ? "destructive"
           : "outline"
