@@ -28,12 +28,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Plus, Pencil, Archive, X,
-  Users, CheckCircle2, TriangleAlert, CheckCircle,
+  Users, CheckCircle2, TriangleAlert, CheckCircle, ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+// ─── Role options ─────────────────────────────────────────────────────────────
+const ROLE_OPTIONS = [
+  { value: "assistant_registrar", label: "Assistant Registrar — (Prepared By)" },
+  { value: "registrar", label: "Registrar — (Submitted By)" },
+  { value: "principal", label: "Principal — (Submitted By)" },
+]
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 function Avatar({ name }: { name: string }) {
@@ -141,7 +154,6 @@ export default function SignatoriesPage() {
 
       setEditingId(null)
     } else {
-      // ── Duplicate check ──────────────────────────────────────────────────────
       const { data: existing } = await supabase
         .from("signatories")
         .select("id")
@@ -153,7 +165,6 @@ export default function SignatoriesPage() {
         setSubmitting(false)
         return
       }
-      // ────────────────────────────────────────────────────────────────────────
 
       const { data: inserted, error } = await supabase
         .from("signatories")
@@ -203,7 +214,6 @@ export default function SignatoriesPage() {
     fetchSignatories()
   }
 
-  // ── Edit ──────────────────────────────────────────────────────────────────────
   const handleEdit = (s: Signatory) => {
     setEditingId(s.id)
     setFullName(s.full_name)
@@ -224,6 +234,8 @@ export default function SignatoriesPage() {
   const activeCount = signatories.filter((s) => s.is_active).length
   const inactiveCount = signatories.filter((s) => !s.is_active).length
   const confirmTarget = signatories.find((s) => s.id === confirmId)
+
+  const selectedRoleLabel = ROLE_OPTIONS.find((r) => r.value === roleType)?.label ?? "Select Role Type"
 
   return (
     <div className="bg-background text-foreground p-6 lg:p-8">
@@ -299,32 +311,45 @@ export default function SignatoriesPage() {
                   {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
                 </div>
 
-                {/* Role Type */}
+                {/* Role Type — shadcn DropdownMenu */}
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label
-                    htmlFor="roleType"
-                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                  >
+                  <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Role Type
                   </label>
-                  <select
-                    id="roleType"
-                    value={roleType}
-                    onChange={(e) => {
-                      setRoleType(e.target.value)
-                      setErrors((p) => ({ ...p, roleType: undefined }))
-                    }}
-                    className={cn(
-                      "h-9 w-full rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all",
-                      errors.roleType
-                        ? "border-destructive/60 focus:ring-destructive/30"
-                        : "border-border/60 hover:border-border focus:ring-ring"
-                    )}
-                  >
-                    <option value="assistant_registrar">Assistant Registrar — (Prepared By)</option>
-                    <option value="registrar">Registrar — (Submitted By)</option>
-                    <option value="principal">Principal — (Submitted By)</option>
-                  </select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className={cn(
+                          "w-full h-9 px-3 text-sm font-normal justify-between overflow-hidden",
+                          errors.roleType
+                            ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30"
+                            : "border-border/60"
+                        )}
+                      >
+                        <span className="truncate">{selectedRoleLabel}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+                      align="start"
+                    >
+                      {ROLE_OPTIONS.map((r) => (
+                        <DropdownMenuItem
+                          key={r.value}
+                          onSelect={() => {
+                            setRoleType(r.value)
+                            setErrors((p) => ({ ...p, roleType: undefined }))
+                          }}
+                          className={cn(roleType === r.value && "bg-accent font-medium")}
+                        >
+                          {r.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {errors.roleType && (
                     <p className="text-xs text-destructive">{errors.roleType}</p>
                   )}
@@ -332,7 +357,6 @@ export default function SignatoriesPage() {
               </div>
 
               <div className="flex justify-end">
-
                 <Button type="submit" disabled={submitting} size="sm" className="gap-1.5 min-w-[130px]">
                   {submitting ? (
                     <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />Saving…</>
@@ -346,6 +370,7 @@ export default function SignatoriesPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  type="button"
                   className="ml-2 gap-1.5 text-muted-foreground"
                   onClick={handleCancelEdit}
                 >
