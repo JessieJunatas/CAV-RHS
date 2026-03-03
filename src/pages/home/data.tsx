@@ -30,9 +30,6 @@ import {
 import { Eye, Pencil, Archive, Clock } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 
-/* ────────────────────────────────────────────
-   Skeleton — matches DataCard layout exactly
-──────────────────────────────────────────── */
 export function DataCardSkeleton() {
   return (
     <Card className="w-full max-w-5xl overflow-hidden border border-border/60">

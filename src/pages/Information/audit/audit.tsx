@@ -31,8 +31,8 @@ export default function Audit() {
     return (
       <div className="px-5 pt-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-            <ScrollText className="h-5 w-5 text-muted-foreground" />
+          <div className="flex h-10 w-10 items-center bg-secondary justify-center rounded-xl">
+            <ScrollText className="h-5 w-5 text-primary" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">
             Audit Logs
@@ -50,8 +50,8 @@ export default function Audit() {
   return (
     <div className="px-5 pt-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-          <ScrollText className="h-5 w-5 text-muted-foreground" />
+        <div className="flex h-10 w-10 items-center bg-primary justify-center rounded-xl">
+          <ScrollText className="h-5 w-5 text-secondary" />
         </div>
         <h1 className="text-xl font-bold tracking-tight">
           Audit Logs
