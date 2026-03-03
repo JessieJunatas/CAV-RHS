@@ -191,7 +191,7 @@ export default function SignatoriesPage() {
 
     try {
       await logAudit({
-        action: "archived",
+        action: "deactivated",
         event: `Deactivated signatory: ${s?.full_name}`,
         recordId: confirmId,
         tableName: "signatories",
@@ -342,15 +342,6 @@ export default function SignatoriesPage() {
                     <><Plus className="h-3.5 w-3.5" />Add Signatory</>
                   )}
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="ml-2 gap-1.5 text-muted-foreground"
-                  onClick={handleCancelEdit}
-                >
-                  <X className="h-3.5 w-3.5" /> Delete
-                </Button>
               </div>
             </form>
           </CardContent>
@@ -436,6 +427,7 @@ export default function SignatoriesPage() {
 
                         <TableCell className="py-3.5 pr-6">
                           <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            
                             <Button
                               size="sm"
                               variant="outline"
@@ -444,7 +436,8 @@ export default function SignatoriesPage() {
                             >
                               <Pencil className="h-3 w-3" /> Edit
                             </Button>
-                            {s.is_active && (
+
+                            {s.is_active ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -453,7 +446,42 @@ export default function SignatoriesPage() {
                               >
                                 <Archive className="h-3 w-3" /> Deactivate
                               </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2.5 gap-1.5 text-xs rounded-lg border-destructive/40 text-destructive hover:bg-destructive hover:text-white"
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from("signatories")
+                                    .delete()
+                                    .eq("id", s.id)
+
+                                  if (error) {
+                                    pushToast("Delete failed", error.message, "error")
+                                    return
+                                  }
+
+                                  try {
+                                    await logAudit({
+                                      action: "deleted",
+                                      event: `Deleted signatory: ${s.full_name}`,
+                                      recordId: s.id,
+                                      tableName: "signatories",
+                                    })
+                                  } catch (err) {
+                                    console.error("Audit log failed:", err)
+                                  }
+
+
+                                  pushToast("Signatory deleted", `${s.full_name} permanently removed.`, "success")
+                                  fetchSignatories()
+                                }}
+                              >
+                                <X className="h-3 w-3" /> Delete
+                              </Button>
                             )}
+
                           </div>
                         </TableCell>
                       </TableRow>

@@ -123,6 +123,33 @@ function ArchivePage() {
     setDeletingId(null)
   }
 
+
+    const handleBulkRestore = async (ids: number[]) => {
+    setBulkDeleting(true)
+
+    const { error } = await supabase
+      .from("cav_forms")
+      .update({ is_archived: false })
+      .in("id", ids)
+
+    if (error) {
+      pushToast("error", "Bulk restore failed", error.message)
+      setBulkDeleting(false)
+      return
+    }
+
+    setRecords(prev => prev.filter(r => !ids.includes(r.id)))
+    setSelected(new Set())
+
+    pushToast(
+      "success",
+      `${ids.length} record${ids.length !== 1 ? "s" : ""} restored`,
+      "They are now visible on the main dashboard."
+    )
+
+    setBulkDeleting(false)
+  }
+
   const handleBulkDelete = async (ids: number[]) => {
     setBulkDeleting(true)
     const { error } = await supabase.from("cav_forms").delete().in("id", ids)
@@ -131,6 +158,19 @@ function ArchivePage() {
       pushToast("error", "Bulk delete failed", error.message)
       setBulkDeleting(false)
       return
+    }
+
+    try {
+      await Promise.all(ids.map(id => {
+        const record = records.find(r => r.id === id)
+        return logAudit({
+          action: "deleted",
+          event: `Deleted archived form for ${record?.full_legal_name ?? "Unknown"}`,
+          recordId: id.toString(),
+        })
+      }))
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
     }
 
     setRecords(prev => prev.filter(r => !ids.includes(r.id)))
@@ -231,10 +271,7 @@ function ArchivePage() {
                       <AlertDialogFooter className="gap-2">
                         <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          className="h-8 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                          onClick={async () => {
-                            for (const id of selectedIds) await handleRestore(id)
-                          }}
+                          onClick={() => handleBulkRestore(selectedIds)}
                         >
                           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                           Restore all
