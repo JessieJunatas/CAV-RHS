@@ -4,7 +4,8 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/dataTable/data-table-column-header"
-import { DataTableRowActions } from "@/components/dataTable/data-table-row-actions" 
+import { DataTableRowActions } from "@/components/dataTable/data-table-row-actions"
+import { getFormTypeShort } from "@/utils/formTypeUtils"
 import type { AuditLog } from "@/types/audit"
 
 export const auditColumns: ColumnDef<AuditLog>[] = [
@@ -58,7 +59,7 @@ export const auditColumns: ColumnDef<AuditLog>[] = [
           : action === "updated"
           ? "secondary"
           : action === "archived"
-          ? "outline"
+          ? "destructive"
           : action === "deleted"
           ? "destructive"
           : "outline"
@@ -91,6 +92,25 @@ export const auditColumns: ColumnDef<AuditLog>[] = [
         {row.getValue("event")}
       </div>
     ),
+  },
+
+  // ── Form Type ──────────────────────────────────────────────
+  {
+    id: "form_type",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Form" />
+    ),
+    cell: ({ row }) => {
+      const newData = row.original.new_data
+      const formType = newData?.form_type ?? newData?.formType
+      if (!formType) return <span className="text-muted-foreground/40 text-xs">—</span>
+      return (
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+          {getFormTypeShort(formType)}
+        </Badge>
+      )
+    },
+    enableSorting: false,
   },
 
   {

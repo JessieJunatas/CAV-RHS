@@ -46,10 +46,10 @@ function buildPdfFileName(fullName: string, date: Date) {
   const yyyy = date.getFullYear()
   const mm = String(date.getMonth() + 1).padStart(2, "0")
   const dd = String(date.getDate()).padStart(2, "0")
-  return `${safeName}_${yyyy}-${mm}-${dd}.pdf`
+  return `${safeName}_K12_${yyyy}-${mm}-${dd}.pdf`
 }
 
-export async function generateCavPDF(form: any) {
+export async function generateCavK12PDF(form: any) {
   let prepareName = ""
   let preparePosition = ""
   let submitName = ""
@@ -73,7 +73,7 @@ export async function generateCavPDF(form: any) {
     }
   }
 
-  const existingPdfBytes = await fetch("/CAV_Format_JHS.pdf").then(res => res.arrayBuffer())
+  const existingPdfBytes = await fetch("/CAV_Format_K-12.pdf").then(res => res.arrayBuffer())
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pages = pdfDoc.getPages()
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
@@ -81,6 +81,7 @@ export async function generateCavPDF(form: any) {
   const today = new Date().toISOString()
 
   const name = (form.full_legal_name ?? "").toUpperCase()
+  const lrn = (form.lrn ?? "").trim()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
   let fontSize = 11
@@ -88,10 +89,11 @@ export async function generateCavPDF(form: any) {
   while (boldFont.widthOfTextAtSize(name, fontSize) > maxWidth && fontSize > 7) fontSize -= 0.5
 
   const p1 = pages[0]
-  drawCentered(p1, form.control_no, 126, 650, 11, font)
-  drawCentered(p1, name, 236, 650, fontSize, boldFont)
-  drawCentered(p1, formatDate(form.date_of_application), 378.5, 650, 11, font)
-  drawCentered(p1, formatDate(form.date_of_transmission), 499.5, 650, 11, font)
+  drawCentered(p1, form.control_no, 126, 727, 11, font)
+  drawCentered(p1, name, 236, 727, fontSize, boldFont)
+  if (lrn) p1.drawText(lrn, { x: 204, y: 694, size: 11, font, color: rgb(0, 0, 0) })
+  drawCentered(p1, formatDate(form.date_of_application), 378.5, 727, 11, font)
+  drawCentered(p1, formatDate(form.date_of_transmission), 499.5, 727, 11, font)
   if (prepareName) p1.drawText(prepareName, { x: 92, y: 510, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
   drawCentered(p1, preparePosition, 150, 495, 9, boldFont)
   drawCentered(p1, submitName, 421.6, 390, fontSize, boldFont)
@@ -99,57 +101,57 @@ export async function generateCavPDF(form: any) {
 
   const p2 = pages[1]
   drawCentered(p2, formatDate(today), 306, 712, fontSize, boldFont)
-  drawCentered(p2, name, 180, 640, fontSize, boldFont)
+  drawCentered(p2, name, 200, 647, fontSize, boldFont)
+  drawCentered(p2, lrn, 200, 618, fontSize, boldFont)
   drawCentered(p2, submitName, 440, 350, fontSize, boldFont)
   drawCentered(p2, submitPosition, 440, 335, 10, boldFont)
 
   const p3 = pages[2]
-  drawCentered(p3, name, 380, 675, fontSize, boldFont)
+  drawCentered(p3, name, 380, 671, fontSize, boldFont)
+  drawCentered(p3, lrn, 200, 651, fontSize, boldFont)
 
-  // Enrolled — unchanged
   const enrolledGrade = (form.enrolled_grade ?? "").trim()
   const enrolledSY = (form.enrolled_sy ?? "").trim()
   if (enrolledGrade || enrolledSY) {
-    p3.drawText("X", { x: 132, y: 620, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (enrolledGrade) p3.drawText(enrolledGrade, { x: 215, y: 622, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (enrolledSY) p3.drawText(enrolledSY, { x: 390, y: 622, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    p3.drawText("X", { x: 132, y: 619, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    if (enrolledGrade) p3.drawText(enrolledGrade, { x: 215, y: 619, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    if (enrolledSY) p3.drawText(enrolledSY, { x: 390, y: 619, size: 10, font: boldFont, color: rgb(0, 0, 0) })
   }
 
-  // Completed — now uses status_completed_grade / status_completed_sy
   const completedGrade = (form.status_completed_grade ?? "").trim()
   const completedSY = (form.status_completed_sy ?? "").trim()
   if (completedGrade || completedSY) {
-    p3.drawText("X", { x: 132, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (completedGrade) p3.drawText(completedGrade, { x: 215, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (completedSY) p3.drawText(completedSY, { x: 390, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    p3.drawText("X", { x: 132, y: 594, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    if (completedGrade) p3.drawText(completedGrade, { x: 215, y: 594, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    if (completedSY) p3.drawText(completedSY, { x: 390, y: 594, size: 10, font: boldFont, color: rgb(0, 0, 0) })
   }
 
-  // Graduated — now uses status_graduated_sy
   const graduatedSY = (form.status_graduated_sy ?? "").trim()
   if (graduatedSY) {
-    p3.drawText("X", { x: 132, y: 570, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    p3.drawText(graduatedSY, { x: 150, y: 545, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    p3.drawText("X", { x: 132, y: 568, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    p3.drawText(graduatedSY, { x: 213, y: 543, size: 10, font: boldFont, color: rgb(0, 0, 0) })
   }
 
-  drawCentered(p3, ordinal, 305, 510, 10, boldFont)
-  drawCentered(p3, month, 400, 510, 10, boldFont)
-  drawCentered(p3, year, 470, 510, 10, boldFont)
-  drawCentered(p3, name, 260, 488, fontSize, boldFont)
+  drawCentered(p3, ordinal, 305, 507, 10, boldFont)
+  drawCentered(p3, month, 400, 507, 10, boldFont)
+  drawCentered(p3, year, 470, 507, 10, boldFont)
+  drawCentered(p3, name, 260, 487, fontSize, boldFont)
   drawCentered(p3, submitName, 421.6, 350, fontSize, boldFont)
   drawCentered(p3, submitPosition, 421.6, 335, 10, boldFont)
 
-  // p4 — still uses school_year_completed and school_year_graduated from Student Information
+
   const p4 = pages[3]
-  drawCentered(p4, name, 328.5, 665, fontSize, boldFont)
+  drawCentered(p4, name, 310, 662, fontSize, boldFont)
+  drawCentered(p4, lrn, 185, 648, fontSize, boldFont)
   if (form.school_year_completed) {
-    p4.drawText(form.school_year_completed, { x: 307, y: 574, size: 11, font: boldFont, color: rgb(0, 0, 0) })
+    p4.drawText(form.school_year_completed, { x: 307, y: 555, size: 11, font: boldFont, color: rgb(0, 0, 0) })
   }
   if (form.school_year_graduated) {
-    p4.drawText(formatDate(form.school_year_graduated), { x: 307, y: 556, size: 11, font: boldFont, color: rgb(0, 0, 0) })
+    p4.drawText(formatDate(form.school_year_graduated), { x: 307, y: 538, size: 11, font: boldFont, color: rgb(0, 0, 0) })
   }
-  drawCentered(p4, ordinal, 295, 450, 10, boldFont)
-  drawCentered(p4, month, 395, 450, 10, boldFont)
-  drawCentered(p4, year, 470, 450, 10, boldFont)
+  drawCentered(p4, ordinal, 295, 434, 10, boldFont)
+  drawCentered(p4, month, 385, 434, 10, boldFont)
+  drawCentered(p4, year, 455, 434, 10, boldFont)
   drawCentered(p4, submitName, 421.6, 290, fontSize, boldFont)
   drawCentered(p4, submitPosition, 421.6, 275, 10, boldFont)
 
@@ -157,11 +159,11 @@ export async function generateCavPDF(form: any) {
   const yyyy = issuedDate.getFullYear()
   const mm = String(issuedDate.getMonth() + 1).padStart(2, "0")
   const dd = String(issuedDate.getDate()).padStart(2, "0")
-  const title = `${name} - CAV - ${yyyy}-${mm}-${dd}`
+  const title = `${name} - CAV K-12 - ${yyyy}-${mm}-${dd}`
 
   pdfDoc.setTitle(title)
   pdfDoc.setAuthor("Rizal High School")
-  pdfDoc.setSubject("Certification, Authentication and Verification")
+  pdfDoc.setSubject("Certification, Authentication and Verification — K-12")
   pdfDoc.setCreator("RHS Auto-Forms System")
 
   const pdfBytes: Uint8Array = await pdfDoc.save()

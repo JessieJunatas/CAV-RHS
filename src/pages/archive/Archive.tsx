@@ -31,8 +31,16 @@ import { logAudit } from "@/utils/audit-log"
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
+type CavForm = {
+  id: number
+  full_legal_name: string
+  control_no: string
+  created_at: string
+  is_archived: boolean
+}
+
 function ArchivePage() {
-  const [records, setRecords] = useState<any[]>([])
+  const [records, setRecords] = useState<CavForm[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -123,6 +131,46 @@ function ArchivePage() {
     setDeletingId(null)
   }
 
+
+    const handleBulkRestore = async (ids: number[]) => {
+    setBulkDeleting(true)
+
+    const { error } = await supabase
+      .from("cav_forms")
+      .update({ is_archived: false })
+      .in("id", ids)
+
+    if (error) {
+      pushToast("error", "Bulk restore failed", error.message)
+      setBulkDeleting(false)
+      return
+    }
+
+    try {
+      await Promise.all(ids.map(id => {
+        const record = records.find(r => r.id === id)
+        return logAudit({
+          action: "restored",
+          event: `Restored archived form for ${record?.full_legal_name ?? "Unknown"}`,
+          recordId: id.toString(),
+        })
+      }))
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
+    }
+
+    setRecords(prev => prev.filter(r => !ids.includes(r.id)))
+    setSelected(new Set())
+
+    pushToast(
+      "success",
+      `${ids.length} record${ids.length !== 1 ? "s" : ""} restored`,
+      "They are now visible on the main dashboard."
+    )
+
+    setBulkDeleting(false)
+  }
+
   const handleBulkDelete = async (ids: number[]) => {
     setBulkDeleting(true)
     const { error } = await supabase.from("cav_forms").delete().in("id", ids)
@@ -131,6 +179,19 @@ function ArchivePage() {
       pushToast("error", "Bulk delete failed", error.message)
       setBulkDeleting(false)
       return
+    }
+
+    try {
+      await Promise.all(ids.map(id => {
+        const record = records.find(r => r.id === id)
+        return logAudit({
+          action: "deleted",
+          event: `Deleted archived form for ${record?.full_legal_name ?? "Unknown"}`,
+          recordId: id.toString(),
+        })
+      }))
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
     }
 
     setRecords(prev => prev.filter(r => !ids.includes(r.id)))
@@ -171,11 +232,10 @@ function ArchivePage() {
       <div className="bg-background text-foreground">
         <div className="mx-auto max-w-4xl px-6 py-10">
 
-          {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                <Archive className="h-5 w-5 text-muted-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
+                <Archive className="h-5 w-5 text-secondary" />
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">Archived Records</h1>
@@ -192,7 +252,6 @@ function ArchivePage() {
             )}
           </div>
 
-          {/* Bulk action bar */}
           {!loading && records.length > 0 && (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-2.5">
               <div className="flex items-center gap-3">
@@ -208,7 +267,6 @@ function ArchivePage() {
 
               {someSelected && (
                 <div className="flex items-center gap-2">
-                  {/* Bulk restore */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -231,10 +289,7 @@ function ArchivePage() {
                       <AlertDialogFooter className="gap-2">
                         <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                          className="h-8 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-                          onClick={async () => {
-                            for (const id of selectedIds) await handleRestore(id)
-                          }}
+                          onClick={() => handleBulkRestore(selectedIds)}
                         >
                           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                           Restore all
@@ -243,7 +298,6 @@ function ArchivePage() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  {/* Bulk delete */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -281,7 +335,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -301,7 +354,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && records.length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
@@ -312,7 +364,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Records list */}
           {!loading && records.length > 0 && (
             <div className="space-y-3">
               {records.map((record) => (
@@ -324,21 +375,18 @@ function ArchivePage() {
                       : "border-border/60 hover:border-border"
                   }`}
                 >
-                  {/* Checkbox */}
                   <Checkbox
                     checked={selected.has(record.id)}
                     onCheckedChange={() => toggleSelect(record.id)}
                     className="rounded shrink-0"
                   />
 
-                  {/* Avatar */}
                   <img
                     src={`https://avatar.vercel.sh/${encodeURIComponent(record.full_legal_name)}`}
                     alt={record.full_legal_name}
                     className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-border"
                   />
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{record.full_legal_name}</p>
                     <div className="flex items-center gap-3 mt-0.5">
@@ -353,9 +401,7 @@ function ArchivePage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* View */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -371,7 +417,6 @@ function ArchivePage() {
                       <TooltipContent side="bottom" className="text-xs">View record</TooltipContent>
                     </Tooltip>
 
-                    {/* Restore */}
                     <AlertDialog>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -380,7 +425,7 @@ function ArchivePage() {
                               size="sm"
                               variant="outline"
                               className="h-8 px-3 gap-1.5 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
-                              disabled={restoringId === record.id}
+                              disabled={restoringId === record.id || deletingId === record.id}
                             >
                               <RotateCcw className={`h-3.5 w-3.5 ${restoringId === record.id ? "animate-spin" : ""}`} />
                               {restoringId === record.id ? "Restoring…" : "Restore"}
@@ -411,7 +456,6 @@ function ArchivePage() {
                       </AlertDialogContent>
                     </AlertDialog>
 
-                    {/* Delete */}
                     <AlertDialog>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -459,7 +503,6 @@ function ArchivePage() {
         </div>
       </div>
 
-      {/* Toast stack */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {toasts.map((toast) =>
           toast.type === "error" ? (

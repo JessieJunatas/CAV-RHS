@@ -9,6 +9,8 @@ import {
   ArchiveRestore,
   LogOut,
   User as _UserIcon,
+  FileText,
+  Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { JSX } from "react";
@@ -90,37 +92,19 @@ const Navbar = ({
       url: "/forms",
       items: [
         {
-          title: "C.A.V Forms UG",
-          description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-
-        {
-          title: "C.A.V Forms K-12 ",
-          description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
-        },
-
-        {
           title: "C.A.V Forms JHS",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
+            "Retrieve and auto-complete Certification, Authentication, and Verification for Junior High School.",
           icon: <BookText className="size-4 shrink-0" />,
           url: "/forms/cav",
         },
-
         {
-          title: "C.A.V Forms UG",
+          title: "C.A.V Forms K-12",
           description:
-            "Retrieve and auto-complete Certification, Authentication, and Verification of Undergraduates.",
-          icon: <BookText className="size-4 shrink-0" />,
-          url: "/forms/cav",
+            "Retrieve and auto-complete Certification, Authentication, and Verification for K-12.",
+          icon: <FileText className="size-4 shrink-0" />,
+          url: "/forms/cavk12",
         },
-        
       ],
     },
 
@@ -128,7 +112,8 @@ const Navbar = ({
       url: "/Personel",
       items: [
         {
-          title: "Signatories",
+
+      title: "Signatories",
       description: "Manage signatories and other personnel here.",
       icon: <_UserIcon className="size-4 shrink-0" />,
       url: "/signatories",
@@ -225,11 +210,9 @@ const Navbar = ({
           }
         `}
       >
-        {/* ── Desktop ── */}
         <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-screen-xl mx-auto w-full">
-          {/* Logo */}
           <Link to={logo.url} className="flex items-center gap-2.5 group shrink-0">
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-primary/8 group-hover:bg-primary/14 transition-colors">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-lg">
               <img
                 src={logo.src}
                 className="w-10 h-10 object-contain"
@@ -241,15 +224,18 @@ const Navbar = ({
             </span>
           </Link>
 
-          {/* Nav items */}
           <NavigationMenu className="mx-6">
             <NavigationMenuList className="gap-1">
               {menu.map((item) => renderMenuItem(item, location.pathname))}
             </NavigationMenuList>
           </NavigationMenu>
+          
+          
 
-          {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
+            <Link to="/settings" className="flex items-center">
+                      <Settings className="size-4 mr-2" />
+            </Link>
             <ThemeTogglerButton variant="ghost" />
             <div className="w-px h-5 bg-border mx-1" />
 
@@ -257,7 +243,6 @@ const Navbar = ({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {/* Avatar circle */}
                     <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold select-none">
                       {avatarInitial}
                     </div>
@@ -295,7 +280,6 @@ const Navbar = ({
           </div>
         </nav>
 
-        {/* ── Mobile ── */}
         <div className="flex lg:hidden items-center justify-between px-4 h-14">
           <Link to={logo.url} className="flex items-center gap-2">
             <img src={logo.src} className="w-7 h-7 object-contain" alt={logo.alt} />
@@ -336,7 +320,6 @@ const Navbar = ({
                   </SheetTitle>
                 </SheetHeader>
 
-                {/* Mobile user info */}
                 {user && (
                   <div className="flex items-center gap-3 px-5 py-3 border-b border-border/60 bg-muted/30">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold select-none shrink-0">
@@ -363,7 +346,6 @@ const Navbar = ({
                   </Accordion>
                 </div>
 
-                {/* Mobile footer CTA */}
                 <div className="px-4 py-4 border-t border-border/60">
                   {user ? (
                     <button

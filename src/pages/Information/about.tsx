@@ -1,7 +1,7 @@
 import {
-  FileText, Zap, Shield, Printer,
+  Zap, Shield, Printer,
   ClipboardList, CheckCircle, ArrowRight,
-  Database, FileBadge, MailCheck, ScrollText,
+  Database, FileBadge,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,6 @@ export default function About() {
     <div className="bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-6 py-14 space-y-16">
 
-        {/* Hero */}
         <div className="space-y-4">
           <Badge variant="outline" className="text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
             Registrar's Office
@@ -26,7 +25,6 @@ export default function About() {
 
         <Separator />
 
-        {/* Feature highlights */}
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/60 mb-6">
             What it does
@@ -57,7 +55,6 @@ export default function About() {
 
         <Separator />
 
-        {/* How it works */}
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/60 mb-6">
             How it works
@@ -90,7 +87,6 @@ export default function About() {
               },
             ].map((s, i, arr) => (
               <div key={s.step} className="flex gap-4">
-                {/* Step line */}
                 <div className="flex flex-col items-center">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-bold text-muted-foreground">
                     {s.step}
@@ -100,7 +96,6 @@ export default function About() {
                   )}
                 </div>
 
-                {/* Content */}
                 <div className={`pb-6 min-w-0 ${i === arr.length - 1 ? "pb-0" : ""}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-muted-foreground/50">{s.icon}</span>
@@ -115,7 +110,6 @@ export default function About() {
 
         <Separator />
 
-        {/* Supported documents */}
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground/60 mb-6">
             Supported documents
@@ -123,9 +117,6 @@ export default function About() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { icon: <FileBadge className="h-4 w-4" />, label: "Certification, Authentication & Verification (CAV)" },
-              { icon: <ScrollText className="h-4 w-4" />, label: "Academic Certifications" },
-              { icon: <MailCheck className="h-4 w-4" />, label: "Verification Letters" },
-              { icon: <FileText className="h-4 w-4" />, label: "Custom Registrar Forms" },
             ].map((d) => (
               <div
                 key={d.label}
@@ -141,7 +132,6 @@ export default function About() {
           </div>
         </div>
 
-        {/* Footer note */}
         <div className="rounded-xl border border-border/40 bg-muted/30 px-5 py-4">
           <p className="text-xs text-muted-foreground/60 leading-relaxed text-center">
             Auto-Forms is an internal tool developed for the Registrar's Office.

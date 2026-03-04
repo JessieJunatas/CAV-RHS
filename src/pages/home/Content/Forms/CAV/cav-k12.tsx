@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
-import { generateCavPDF } from "@/utils/generateCAVpdf"
-import { generatePreviewUrl } from "@/utils/generateCAVpreview"
+import { generateCavK12PDF } from "@/utils/generateCAVK12pdf"
+import { generateK12PreviewUrl } from "@/utils/generateCAVK12preview"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -32,8 +32,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 
-type CavFormData = {
+type CavK12FormData = {
   full_legal_name: string
+  lrn: string
   date_issued: string
   date_of_transmission: string
   school_year_completed: string
@@ -51,25 +52,31 @@ type CavFormData = {
 
 type Step = "editing" | "previewing" | "submitted"
 
-const EMPTY: CavFormData = {
-  full_legal_name: "", date_issued: "", date_of_transmission: "",
+const EMPTY: CavK12FormData = {
+  full_legal_name: "", lrn: "",
+  date_issued: "", date_of_transmission: "",
   school_year_completed: "", date_of_application: "", school_year_graduated: "",
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
   prepared_by: "", submitted_by: "",
 }
 
-const FIELD_LABELS: Record<keyof CavFormData, string> = {
-  full_legal_name: "Complete Name", date_issued: "Date Issued",
-  date_of_transmission: "Date of Transmission", school_year_completed: "School Year Completed",
-  date_of_application: "Date of Application", school_year_graduated: "School Year Graduated",
-  control_no: "Control No.", enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
+const FIELD_LABELS: Record<keyof CavK12FormData, string> = {
+  full_legal_name: "Complete Name",
+  lrn: "LRN / Reference No.",
+  date_issued: "Date Issued",
+  date_of_transmission: "Date of Transmission",
+  school_year_completed: "School Year Completed",
+  date_of_application: "Date of Application",
+  school_year_graduated: "School Year Graduated",
+  control_no: "Control No.",
+  enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
   status_graduated_sy: "Status Graduated SY",
   prepared_by: "Prepared By", submitted_by: "Submitted By",
 }
 
-const OPTIONAL: (keyof CavFormData)[] = [
+const OPTIONAL: (keyof CavK12FormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed",
   "school_year_graduated", "status_completed_grade",
   "status_completed_sy", "status_graduated_sy",
@@ -147,7 +154,7 @@ function StepTracker({ step }: { step: Step }) {
             <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-300 ${active ? "bg-muted" : ""}`}>
               <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                 done    ? "bg-muted-foreground text-background"
-                : active ? "bg-foreground text-background ring-4 ring-foreground"
+                : active ? "bg-foreground text-background ring-4 ring-border"
                 : "border-2 border-border text-muted-foreground"
               }`}>
                 {done
@@ -159,13 +166,11 @@ function StepTracker({ step }: { step: Step }) {
                 <p className={`text-[11px] font-semibold leading-none transition-colors ${
                   active ? "text-foreground" : done ? "text-muted-foreground" : "text-muted-foreground"
                 }`}>{s.label}</p>
-                <p className={`text-[10px] mt-0.5 transition-colors ${
-                  active ? "text-muted-foreground" : "text-muted-foreground"
-                }`}>{s.desc}</p>
+                <p className="text-[10px] mt-0.5 text-muted-foreground">{s.desc}</p>
               </div>
             </div>
             {i < steps.length - 1 && (
-              <div className={`h-px w-5 mx-1 transition-colors duration-500 ${done ? "bg-border/60" : "bg-border/30"}`} />
+              <div className={`h-px w-5 mx-1 transition-colors duration-500 ${done ? "bg-border" : "bg-border"}`} />
             )}
           </div>
         )
@@ -175,15 +180,15 @@ function StepTracker({ step }: { step: Step }) {
 }
 
 
-export default function CAV() {
+export default function CAVK12() {
   const navigate = useNavigate()
 
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
   const [generatingPreview, setGenerating]  = useState(false)
-  const [savedForm, setSavedForm]           = useState<(CavFormData & { id: string }) | null>(null)
+  const [savedForm, setSavedForm]           = useState<(CavK12FormData & { id: string }) | null>(null)
   const [errors, setErrors]                 = useState<string[]>([])
-  const [formData, setFormData]             = useState<CavFormData>(EMPTY)
+  const [formData, setFormData]             = useState<CavK12FormData>(EMPTY)
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null)
   const [toasts, setToasts]                 = useState<Toast[]>([])
   const [preparedOptions, setPrepared]      = useState<any[]>([])
@@ -210,12 +215,12 @@ export default function CAV() {
     setErrors([])
     setFormData(p => ({ ...p, [e.target.name]: e.target.value }))
   }
-  const handleDate = (name: keyof CavFormData, val: string) => {
+  const handleDate = (name: keyof CavK12FormData, val: string) => {
     setErrors([])
     setFormData(p => ({ ...p, [name]: val }))
   }
 
-  const requiredKeys  = (Object.keys(EMPTY) as (keyof CavFormData)[]).filter(k => !OPTIONAL.includes(k))
+  const requiredKeys   = (Object.keys(EMPTY) as (keyof CavK12FormData)[]).filter(k => !OPTIONAL.includes(k))
   const filledRequired = requiredKeys.filter(k => !!formData[k]?.trim()).length
   const progress       = Math.round((filledRequired / requiredKeys.length) * 100)
 
@@ -224,11 +229,11 @@ export default function CAV() {
   const graduatedActive = !!formData.status_graduated_sy
 
   const err      = (label: string) => errors.includes(label)
-  const isFilled = (key: keyof CavFormData) => !!formData[key]?.trim()
-  const inputCls = (label: string, key: keyof CavFormData) =>
+  const isFilled = (key: keyof CavK12FormData) => !!formData[key]?.trim()
+  const inputCls = (label: string, key: keyof CavK12FormData) =>
     `h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-50 ${
       err(label)
-        ? "border-destructive/50 bg-destructive/10 focus-visible:ring-destructive"
+        ? "border-destructive bg-destructive/10 focus-visible:ring-destructive"
         : isFilled(key)
         ? "border-border bg-muted focus-visible:ring-border"
         : "border-border bg-background focus-visible:ring-border"
@@ -248,7 +253,7 @@ export default function CAV() {
     setGenerating(true)
     setPreviewUrl(null)
     try {
-      const url = await generatePreviewUrl(formData, preparedOptions, submittedOptions)
+      const url = await generateK12PreviewUrl(formData, preparedOptions, submittedOptions)
       setPreviewUrl(url)
     } catch (e: any) {
       pushToast("error", "Preview failed", e.message)
@@ -269,20 +274,20 @@ export default function CAV() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
       const created = await createForm({
-        table: "cav_forms", data: formData, formType: 1,
-        userId: user.id, userEmail: user.email!, label: "CAV Form",
+        table: "cav_forms", data: formData, formType: 2,
+        userId: user.id, userEmail: user.email!, label: "CAV K-12 Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
       try {
-        await logAudit({ action: "created", event: `Created CAV form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
+        await logAudit({ action: "created", event: `Created CAV K-12 form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
       } catch (e) { console.error("Audit log failed:", e) }
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       setSubmitDialog(false)
       setStep("submitted")
-      pushToast("success", "Submitted!", `CAV form for ${formData.full_legal_name} was saved.`)
+      pushToast("success", "Submitted!", `CAV K-12 form for ${formData.full_legal_name} was saved.`)
       setGenerating(true)
-      const url = await generatePreviewUrl(saved, preparedOptions, submittedOptions)
+      const url = await generateK12PreviewUrl(saved, preparedOptions, submittedOptions)
       setPreviewUrl(url)
       setGenerating(false)
     } catch (e: any) {
@@ -317,7 +322,7 @@ export default function CAV() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight leading-none">CAV Form</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Junior High School — Certification, Authentication & Verification</p>
+              <p className="text-xs text-muted-foreground mt-0.5">K-12 — Certification, Authentication & Verification</p>
             </div>
           </div>
           <StepTracker step={step} />
@@ -326,7 +331,7 @@ export default function CAV() {
         {step === "previewing" && (
           <div className="mb-5 rounded-xl border border-border bg-muted overflow-hidden">
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <div className="h-9 w-9 rounded-xl bg-background flex items-center justify-center shrink-0">
                 <Eye className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
@@ -337,11 +342,11 @@ export default function CAV() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button variant="outline" size="sm" onClick={handleEditFromPreview}
-                  className="h-8 gap-1.5 text-xs rounded-lg border-border hover:bg-muted text-foreground">
+                  className="h-8 gap-1.5 text-xs rounded-lg">
                   <Edit2 className="h-3 w-3" /> Edit Form
                 </Button>
                 <Button size="sm" onClick={() => setSubmitDialog(true)}
-                  className="h-8 gap-1.5 text-xs rounded-lg bg-foreground hover:bg-foreground text-background">
+                  className="h-8 gap-1.5 text-xs rounded-lg">
                   <ShieldCheck className="h-3 w-3" /> Confirm & Submit
                 </Button>
               </div>
@@ -352,13 +357,13 @@ export default function CAV() {
         {step === "submitted" && (
           <div className="mb-5 rounded-xl border border-border bg-muted overflow-hidden">
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4.5 w-4.5 text-muted-foreground" />
+              <div className="h-9 w-9 rounded-xl bg-background flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground leading-none">Form submitted successfully</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  CAV form for <span className="font-medium">{formData.full_legal_name}</span> has been saved to the database.
+                  CAV K-12 form for <span className="font-medium text-foreground">{formData.full_legal_name}</span> has been saved to the database.
                 </p>
               </div>
             </div>
@@ -377,18 +382,22 @@ export default function CAV() {
                       disabled={isLocked} placeholder="Full legal name" className={inputCls("Complete Name", "full_legal_name")} />
                   </FieldRow>
                 </div>
+                <FieldRow label="LRN / Reference No." icon={<Hash className="h-3 w-3" />} error={err("LRN / Reference No.")} filled={!!formData.lrn}>
+                  <Input name="lrn" value={formData.lrn} onChange={handleChange}
+                    disabled={isLocked} placeholder="Learner Reference No." className={inputCls("LRN / Reference No.", "lrn")} />
+                </FieldRow>
                 <FieldRow label="Control No." icon={<Hash className="h-3 w-3" />} error={err("Control No.")} filled={!!formData.control_no}>
                   <Input name="control_no" value={formData.control_no} onChange={handleChange}
                     disabled={isLocked} placeholder="e.g. 2024-001" className={inputCls("Control No.", "control_no")} />
                 </FieldRow>
-                <FieldRow label="SY Completed" icon={<GraduationCap className="h-3 w-3" />} error={err("School Year Completed")} filled={!!formData.school_year_completed}>
+                <FieldRow label="SY Completed" icon={<GraduationCap className="h-3 w-3" />} filled={!!formData.school_year_completed}>
                   <Input name="school_year_completed" value={formData.school_year_completed} onChange={handleChange}
                     disabled={isLocked} placeholder="e.g. 2023-2024" className={inputCls("School Year Completed", "school_year_completed")} />
                 </FieldRow>
-                <FieldRow label="SY Graduated" icon={<GraduationCap className="h-3 w-3" />} error={err("School Year Graduated")} filled={!!formData.school_year_graduated}>
+                <FieldRow label="SY Graduated" icon={<GraduationCap className="h-3 w-3" />} filled={!!formData.school_year_graduated}>
                   <DatePicker value={formData.school_year_graduated} onChange={v => handleDate("school_year_graduated", v)}
                     disabled={isLocked} placeholder="Pick date"
-                    className={err("School Year Graduated") ? "border-destructive/50 bg-destructive/10" : isFilled("school_year_graduated") ? "border-border bg-muted" : ""} />
+                    className={isFilled("school_year_graduated") ? "border-border bg-muted" : ""} />
                 </FieldRow>
               </div>
             </SectionBlock>
@@ -398,17 +407,17 @@ export default function CAV() {
                 <FieldRow label="Date Issued" icon={<Calendar className="h-3 w-3" />} error={err("Date Issued")} filled={!!formData.date_issued}>
                   <DatePicker value={formData.date_issued} onChange={v => handleDate("date_issued", v)}
                     disabled={isLocked} placeholder="Pick date"
-                    className={err("Date Issued") ? "border-destructive/50 bg-destructive/10" : isFilled("date_issued") ? "border-border bg-muted" : ""} />
+                    className={err("Date Issued") ? "border-destructive bg-destructive/10" : isFilled("date_issued") ? "border-border bg-muted" : ""} />
                 </FieldRow>
                 <FieldRow label="Date of Application" icon={<Calendar className="h-3 w-3" />} error={err("Date of Application")} filled={!!formData.date_of_application}>
                   <DatePicker value={formData.date_of_application} onChange={v => handleDate("date_of_application", v)}
                     disabled={isLocked} placeholder="Pick date"
-                    className={err("Date of Application") ? "border-destructive/50 bg-destructive/10" : isFilled("date_of_application") ? "border-border bg-muted" : ""} />
+                    className={err("Date of Application") ? "border-destructive bg-destructive/10" : isFilled("date_of_application") ? "border-border bg-muted" : ""} />
                 </FieldRow>
                 <FieldRow label="Date of Transmission" icon={<Send className="h-3 w-3" />} error={err("Date of Transmission")} filled={!!formData.date_of_transmission}>
                   <DatePicker value={formData.date_of_transmission} onChange={v => handleDate("date_of_transmission", v)}
                     disabled={isLocked} placeholder="Pick date"
-                    className={err("Date of Transmission") ? "border-destructive/50 bg-destructive/10" : isFilled("date_of_transmission") ? "border-border bg-muted" : ""} />
+                    className={err("Date of Transmission") ? "border-destructive bg-destructive/10" : isFilled("date_of_transmission") ? "border-border bg-muted" : ""} />
                 </FieldRow>
               </div>
             </SectionBlock>
@@ -433,11 +442,11 @@ export default function CAV() {
                   <div className="flex items-center gap-2">
                     <Input name="status_completed_grade" value={formData.status_completed_grade} onChange={handleChange}
                       disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
-                      className={`h-8 text-xs flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted border-border" : "bg-background"}`} />
+                      className={`h-8 text-xs flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted" : "bg-background"}`} />
                     <span className="text-[11px] text-muted-foreground whitespace-nowrap">during SY</span>
                     <Input name="status_completed_sy" value={formData.status_completed_sy} onChange={handleChange}
                       disabled={isLocked} placeholder="2020-2021"
-                      className={`h-8 text-xs w-24 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_sy ? "bg-muted border-border" : "bg-background"}`} />
+                      className={`h-8 text-xs w-24 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_sy ? "bg-muted" : "bg-background"}`} />
                   </div>
                 </StatusCard>
                 <StatusCard active={graduatedActive} label="Satisfactorily graduated from Secondary Course">
@@ -445,7 +454,7 @@ export default function CAV() {
                     <span className="text-[11px] text-muted-foreground whitespace-nowrap">for SY</span>
                     <Input name="status_graduated_sy" value={formData.status_graduated_sy} onChange={handleChange}
                       disabled={isLocked} placeholder="2020-2021"
-                      className={`h-8 text-xs flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_graduated_sy ? "bg-muted border-border" : "bg-background"}`} />
+                      className={`h-8 text-xs flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_graduated_sy ? "bg-muted" : "bg-background"}`} />
                   </div>
                 </StatusCard>
               </div>
@@ -454,10 +463,12 @@ export default function CAV() {
             <SectionBlock title="Signatories" icon={<Pen className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className={`text-[11px] font-semibold uppercase tracking-wider ${err("Prepared By") ? "text-destructive" : "text-muted-foreground"}`}>Prepared By</label>
+                  <label className={`text-[11px] font-semibold uppercase tracking-wider ${err("Prepared By") ? "text-destructive" : "text-muted-foreground"}`}>
+                    Prepared By
+                  </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${err("Prepared By") ? "border-destructive/50 bg-destructive/10" : prepObj ? "border-border bg-muted" : ""}`}>
+                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${err("Prepared By") ? "border-destructive bg-destructive/10" : prepObj ? "border-border bg-muted" : ""}`}>
                         <span className={`truncate text-left text-sm ${!prepObj ? "text-muted-foreground" : ""}`}>
                           {prepObj ? prepObj.full_name : "Select signatory"}
                         </span>
@@ -478,10 +489,12 @@ export default function CAV() {
                   {prepObj && <p className="text-[10px] text-muted-foreground pl-1 truncate">{prepObj.position}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className={`text-[11px] font-semibold uppercase tracking-wider ${err("Submitted By") ? "text-destructive" : "text-muted-foreground"}`}>Submitted By</label>
+                  <label className={`text-[11px] font-semibold uppercase tracking-wider ${err("Submitted By") ? "text-destructive" : "text-muted-foreground"}`}>
+                    Submitted By
+                  </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${err("Submitted By") ? "border-destructive/50 bg-destructive/10" : subObj ? "border-border bg-muted" : ""}`}>
+                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${err("Submitted By") ? "border-destructive bg-destructive/10" : subObj ? "border-border bg-muted" : ""}`}>
                         <span className={`truncate text-left text-sm ${!subObj ? "text-muted-foreground" : ""}`}>
                           {subObj ? subObj.full_name : "Select signatory"}
                         </span>
@@ -520,7 +533,7 @@ export default function CAV() {
                 <Button variant="outline" onClick={handleEditFromPreview} className="flex-1 h-11 text-sm font-semibold gap-2 rounded-xl">
                   <Edit2 className="h-4 w-4" /> Edit Form
                 </Button>
-                <Button onClick={() => setSubmitDialog(true)} className="flex-1 h-11 text-sm font-semibold gap-2 rounded-xl bg-foreground hover:bg-foreground">
+                <Button onClick={() => setSubmitDialog(true)} className="flex-1 h-11 text-sm font-semibold gap-2 rounded-xl">
                   <ShieldCheck className="h-4 w-4" /> Confirm & Submit
                 </Button>
               </div>
@@ -540,12 +553,12 @@ export default function CAV() {
                   <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">PDF Preview</span>
                 </div>
                 <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold transition-all duration-300 ${
-                  step === "submitted"  ? "bg-muted text-muted-foreground"
-                  : step === "previewing" ? "bg-muted text-muted-foreground"
-                  : "bg-muted text-muted-foreground"
+                  step === "submitted"  ? "bg-background text-foreground"
+                  : step === "previewing" ? "bg-background text-muted-foreground"
+                  : "bg-background text-muted-foreground"
                 }`}>
                   <div className={`h-1.5 w-1.5 rounded-full ${
-                    step === "submitted"  ? "bg-muted-foreground"
+                    step === "submitted"  ? "bg-foreground"
                     : step === "previewing" ? "bg-muted-foreground animate-pulse"
                     : "bg-muted-foreground"
                   }`} />
@@ -564,14 +577,14 @@ export default function CAV() {
                           <div className="h-1 w-6 rounded-full bg-muted-foreground" />
                         </div>
                       </div>
-                      <div className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-muted border border-border flex items-center justify-center">
+                      <div className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center">
                         <FileText className="h-3 w-3 text-muted-foreground" />
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <p className="text-sm font-semibold text-muted-foreground">No preview yet</p>
                       <p className="text-xs text-muted-foreground leading-relaxed max-w-[180px]">
-                        Complete the form and click <span className="font-medium text-muted-foreground">Preview PDF</span> to review before submitting
+                        Complete the form and click <span className="font-medium text-foreground">Preview PDF</span> to review before submitting
                       </p>
                     </div>
                     <div className="w-full max-w-[140px] space-y-2">
@@ -579,7 +592,7 @@ export default function CAV() {
                         <span>{filledRequired} of {requiredKeys.length}</span>
                         <span>{progress}%</span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                      <div className="h-1 w-full rounded-full bg-border overflow-hidden">
                         <div className="h-full rounded-full bg-muted-foreground transition-all duration-500" style={{ width: `${progress}%` }} />
                       </div>
                     </div>
@@ -593,12 +606,12 @@ export default function CAV() {
                 )}
                 {previewUrl && !generatingPreview && (
                   <iframe src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                    className="absolute inset-0 h-full w-full border-0" title="CAV PDF Preview" />
+                    className="absolute inset-0 h-full w-full border-0" title="CAV K-12 PDF Preview" />
                 )}
               </div>
             </div>
 
-            <Button onClick={() => savedForm && generateCavPDF(savedForm)}
+            <Button onClick={() => savedForm && generateCavK12PDF(savedForm)}
               disabled={step !== "submitted" || generatingPreview}
               variant="outline" className="w-full h-10 gap-2 rounded-xl text-sm">
               <Download className="h-4 w-4" />
@@ -614,7 +627,7 @@ export default function CAV() {
             <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
               <ShieldCheck className="h-7 w-7 text-foreground" />
             </div>
-            <AlertDialogTitle className="text-base">Submit this CAV Form?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base">Submit this CAV K-12 Form?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
               This will permanently save the form for{" "}
               <span className="font-semibold text-foreground">{formData.full_legal_name || "this student"}</span>{" "}
@@ -625,6 +638,7 @@ export default function CAV() {
           <div className="my-1 rounded-xl border border-border bg-muted divide-y divide-border overflow-hidden">
             {[
               { label: "Student",     value: formData.full_legal_name },
+              { label: "LRN",         value: formData.lrn },
               { label: "Control No.", value: formData.control_no },
               { label: "Date Issued", value: formData.date_issued },
               { label: "Prepared by", value: prepObj?.full_name },
@@ -645,7 +659,7 @@ export default function CAV() {
             <AlertDialogAction
               onClick={e => { e.preventDefault(); handleConfirmSubmit() }}
               disabled={submitting}
-              className="flex-1 rounded-xl h-10 bg-foreground hover:bg-foreground focus:ring-foreground gap-2 m-0"
+              className="flex-1 rounded-xl h-10 gap-2 m-0"
             >
               {submitting
                 ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting…</>

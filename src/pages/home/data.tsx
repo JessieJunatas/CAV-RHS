@@ -30,19 +30,13 @@ import {
 import { Eye, Pencil, Archive, Clock } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 
-/* ────────────────────────────────────────────
-   Skeleton — matches DataCard layout exactly
-──────────────────────────────────────────── */
 export function DataCardSkeleton() {
   return (
     <Card className="w-full max-w-5xl overflow-hidden border border-border/60">
       <div className="flex min-h-[140px]">
-        {/* Full-height image skeleton */}
         <Skeleton className="w-[160px] shrink-0 rounded-none rounded-l-xl" />
 
-        {/* Content */}
         <div className="flex flex-1 min-w-0 flex-col gap-3 p-5">
-          {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2 flex-1 min-w-0">
               <Skeleton className="h-4 w-48 rounded" />
@@ -52,10 +46,8 @@ export function DataCardSkeleton() {
             <Skeleton className="h-5 w-14 rounded-full shrink-0" />
           </div>
 
-          {/* Value */}
           <Skeleton className="h-7 w-32 rounded" />
 
-          {/* Footer */}
           <div className="flex items-center justify-between mt-auto pt-1">
             <Skeleton className="h-3.5 w-36 rounded" />
             <div className="flex gap-2">
@@ -92,7 +84,7 @@ export default function DataCard({
   const navigate = useNavigate()
   const [archiving, setArchiving] = useState(false)
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     setArchiving(true)
     const { data, error } = await supabase
       .from("cav_forms")
@@ -113,7 +105,8 @@ export default function DataCard({
         action: "archived",
         event: `Archived form for ${title}`,
         recordId: id.toString(),
-        
+        oldData: { is_archived: false },
+        newData: { is_archived: true },
       })
       } 
       catch (err: any) {
@@ -132,7 +125,6 @@ export default function DataCard({
       <Card className="group w-full max-w-5xl overflow-hidden border border-border/60 transition-all duration-200 hover:border-border hover:shadow-md hover:shadow-black/[0.04] dark:hover:shadow-black/20">
         <div className="flex">
 
-          {/* Full-height split image */}
           <div className="overflow-hidden self-stretch">
             <img
               src={`https://avatar.vercel.sh/${encodeURIComponent(title)}`}
@@ -141,10 +133,8 @@ export default function DataCard({
             />
           </div>
 
-          {/* Main content */}
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 px-5 py-5">
 
-            {/* Header row */}
             <div className="flex items-start justify-between gap-3">
               <CardHeader className="p-0 space-y-1 min-w-0">
                 <CardTitle className="truncate text-[15px] font-semibold leading-snug">
@@ -156,21 +146,17 @@ export default function DataCard({
               </CardHeader>
             </div>
 
-            {/* Primary value */}
             <p className="text-2xl font-bold tracking-tight text-foreground leading-none">
               {value}
             </p>
 
-            {/* Footer row */}
             <CardFooter className="mt-auto flex items-center justify-between gap-4 p-0 pt-1">
 
-              {/* Timestamp */}
               <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground/70">
                 <Clock className="size-3 shrink-0" />
                 <span>Modified {displayDate}</span>
               </div>
 
-              {/* Actions */}
               <div className="flex items-center gap-1.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -232,7 +218,7 @@ export default function DataCard({
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={handleDelete}
+                        onClick={handleArchive}
                         className="h-8 text-xs rounded-lg bg-destructive text-destructive-foreground"
                       >
                         <Archive className="size-3.5" />
