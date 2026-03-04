@@ -89,7 +89,7 @@ export default function DataCard({
   const navigate = useNavigate()
   const [archiving, setArchiving] = useState(false)
 
-  const handleArchived = async () => {
+  const handleArchive = async () => {
     setArchiving(true)
     const { data, error } = await supabase
       .from("cav_forms")
@@ -230,7 +230,7 @@ export default function DataCard({
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={handleArchived}
+                        onClick={handleArchive}
                         className="h-8 text-xs rounded-lg bg-destructive text-destructive-foreground"
                       >
                         <Archive className="size-3.5" />

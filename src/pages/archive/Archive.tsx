@@ -31,8 +31,16 @@ import { logAudit } from "@/utils/audit-log"
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
+type CavForm = {
+  id: number
+  full_legal_name: string
+  control_no: string
+  created_at: string
+  is_archived: boolean
+}
+
 function ArchivePage() {
-  const [records, setRecords] = useState<any[]>([])
+  const [records, setRecords] = useState<CavForm[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -136,6 +144,19 @@ function ArchivePage() {
       pushToast("error", "Bulk restore failed", error.message)
       setBulkDeleting(false)
       return
+    }
+
+    try {
+      await Promise.all(ids.map(id => {
+        const record = records.find(r => r.id === id)
+        return logAudit({
+          action: "restored",
+          event: `Restored archived form for ${record?.full_legal_name ?? "Unknown"}`,
+          recordId: id.toString(),
+        })
+      }))
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
     }
 
     setRecords(prev => prev.filter(r => !ids.includes(r.id)))
@@ -417,7 +438,7 @@ function ArchivePage() {
                               size="sm"
                               variant="outline"
                               className="h-8 px-3 gap-1.5 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
-                              disabled={restoringId === record.id}
+                              disabled={restoringId === record.id || deletingId === record.id}
                             >
                               <RotateCcw className={`h-3.5 w-3.5 ${restoringId === record.id ? "animate-spin" : ""}`} />
                               {restoringId === record.id ? "Restoring…" : "Restore"}
