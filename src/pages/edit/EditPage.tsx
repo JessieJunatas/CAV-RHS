@@ -141,7 +141,13 @@ export default function EditPage() {
   }, [formData, preparedOptions, submittedOptions])
 
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault() }
+    const handler = (e: BeforeUnloadEvent) => {
+    if (isDirty) {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+  }
+    
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
   }, [isDirty])
@@ -154,10 +160,12 @@ export default function EditPage() {
   const handleUpdate = async () => {
     if (!id) return
     setSaving(true); setError(null)
-    const { oldData, newData } = getChangedFields(originalData, formData)
-    if (!newData) { setSaving(false); return }
+    const { newData, oldData } = getChangedFields(originalData, formData)
+    const isDirty = !!newData
+
     const { error } = await supabase.from("cav_forms").update(formData).eq("id", id)
     if (error) { setError(error.message); setSaving(false); return }
+    
     try {
       await logAudit({ action: "updated", event: `Updated CAV form for ${formData.full_legal_name}`, recordId: id as string, oldData, newData })
     } catch (e) { console.error("Audit log failed:", e) }
@@ -261,7 +269,7 @@ export default function EditPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <FieldRow label="Complete Name" icon={<User className="h-3 w-3" />} changed={ch("full_legal_name")}>
-                    <DirtyInput name="full_legal_name" value={formData.full_legal_name} originalValue={originalData.full_legal_name}
+                    <DirtyInput name="full_legal_name" value={formData.full_legal_name} originalValue={originalData?.full_legal_name}
                       onChange={handleChange} placeholder="Full legal name" />
                   </FieldRow>
                 </div>

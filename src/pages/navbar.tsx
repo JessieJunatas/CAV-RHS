@@ -10,6 +10,7 @@ import {
   LogOut,
   User as _UserIcon,
   FileText,
+  Settings,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { JSX } from "react";
@@ -111,7 +112,8 @@ const Navbar = ({
       url: "/Personel",
       items: [
         {
-          title: "Signatories",
+
+      title: "Signatories",
       description: "Manage signatories and other personnel here.",
       icon: <_UserIcon className="size-4 shrink-0" />,
       url: "/signatories",
@@ -230,9 +232,14 @@ const Navbar = ({
               {menu.map((item) => renderMenuItem(item, location.pathname))}
             </NavigationMenuList>
           </NavigationMenu>
+          
+          
 
           {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
+            <Link to="/settings" className="flex items-center">
+                      <Settings className="size-4 mr-2" />
+            </Link>
             <ThemeTogglerButton variant="ghost" />
             <div className="w-px h-5 bg-border mx-1" />
 
