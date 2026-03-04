@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { getFormTypeLabel } from "@/utils/formTypeUtils"
 import {
   ArrowLeft, Pencil, Printer, Calendar, School,
-  MapPin, Hash, GraduationCap, ClipboardList,
+  Hash, GraduationCap, ClipboardList,
   Send, User, AlertCircle,
 } from "lucide-react"
 

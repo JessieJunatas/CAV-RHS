@@ -159,7 +159,6 @@ export default function EditPage() {
     if (!id) return
     setSaving(true); setError(null)
     const { newData, oldData } = getChangedFields(originalData, formData)
-    const isDirty = !!newData
 
     const { error } = await supabase.from("cav_forms").update(formData).eq("id", id)
     if (error) { setError(error.message); setSaving(false); return }

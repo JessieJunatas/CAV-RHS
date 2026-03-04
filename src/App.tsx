@@ -79,12 +79,6 @@ function Layout() {
   )
 }
 
-type UserSettings = {
-  theme: Theme
-  fontSize: FontSize
-  fontStyle: FontStyle
-} | null
-
 function App() {
   const [forcedTheme, setForcedTheme] = useState<Theme | null>(null)
   const [forcedFontSize, setForcedFontSize] = useState<FontSize | null>(null)
