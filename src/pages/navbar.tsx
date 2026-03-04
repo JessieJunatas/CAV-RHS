@@ -210,9 +210,7 @@ const Navbar = ({
           }
         `}
       >
-        {/* ── Desktop ── */}
         <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-screen-xl mx-auto w-full">
-          {/* Logo */}
           <Link to={logo.url} className="flex items-center gap-2.5 group shrink-0">
             <div className="relative flex items-center justify-center w-8 h-8 rounded-lg">
               <img
@@ -226,7 +224,6 @@ const Navbar = ({
             </span>
           </Link>
 
-          {/* Nav items */}
           <NavigationMenu className="mx-6">
             <NavigationMenuList className="gap-1">
               {menu.map((item) => renderMenuItem(item, location.pathname))}
@@ -235,7 +232,6 @@ const Navbar = ({
           
           
 
-          {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/settings" className="flex items-center">
                       <Settings className="size-4 mr-2" />
@@ -247,7 +243,6 @@ const Navbar = ({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {/* Avatar circle */}
                     <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold select-none">
                       {avatarInitial}
                     </div>
@@ -285,7 +280,6 @@ const Navbar = ({
           </div>
         </nav>
 
-        {/* ── Mobile ── */}
         <div className="flex lg:hidden items-center justify-between px-4 h-14">
           <Link to={logo.url} className="flex items-center gap-2">
             <img src={logo.src} className="w-7 h-7 object-contain" alt={logo.alt} />
@@ -326,7 +320,6 @@ const Navbar = ({
                   </SheetTitle>
                 </SheetHeader>
 
-                {/* Mobile user info */}
                 {user && (
                   <div className="flex items-center gap-3 px-5 py-3 border-b border-border/60 bg-muted/30">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold select-none shrink-0">
@@ -353,7 +346,6 @@ const Navbar = ({
                   </Accordion>
                 </div>
 
-                {/* Mobile footer CTA */}
                 <div className="px-4 py-4 border-t border-border/60">
                   {user ? (
                     <button

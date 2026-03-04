@@ -1154,7 +1154,6 @@ export default function DocsPage() {
   return (
     <div className="flex px-90 bg-background text-foreground items-start">
 
-      {/* ── Left sidebar ── */}
       <aside className="hidden md:flex flex-col w-60 shrink-0 self-start sticky top-16 py-6 pr-10">
         <div className="flex items-center gap-2 px-3 mb-6">
           <FileText className="h-4 w-4 text-muted-foreground" />
@@ -1193,7 +1192,6 @@ export default function DocsPage() {
         ))}
       </aside>
 
-      {/* ── Main content ── */}
       <main className="flex-1 flex flex-col items-center">
         <div className="w-full max-w-[800px] px-10 py-12">
           <PageContent pageId={activeSection} onNavigate={setActiveSection} />
@@ -1213,7 +1211,6 @@ export default function DocsPage() {
         </div>
       </main>
 
-      {/* ── Right TOC ── */}
       {toc.length > 0 && (
         <aside className="hidden xl:flex flex-col w-52 shrink-0 self-start sticky top-16 py-6 pl-6">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">On This Page</p>

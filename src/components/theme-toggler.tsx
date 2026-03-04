@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useTheme } from 'next-themes';
 import { Monitor, Moon, Sun } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
+import { supabase } from "@/lib/supabase"
 
 import {
   ThemeToggler as ThemeTogglerPrimitive,
@@ -13,6 +14,7 @@ import {
 } from '@/components/animate-ui/primitives/effects/theme-toggler';
 import { buttonVariants } from '@/components/animate-ui/components/buttons/icon';
 import { cn } from '@/lib/utils';
+
 
 const getIcon = (
   effective: ThemeSelection,
@@ -38,6 +40,63 @@ const getNextTheme = (
   return modes[(i + 1) % modes.length];
 };
 
+
+function useSupabaseThemeSync() {
+  const { setTheme } = useTheme();
+
+  React.useEffect(() => {
+    let ignore = false;
+
+    async function loadTheme() {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) return;
+
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('theme')
+        .eq('account_id', user.id)
+        .single();
+
+      if (!ignore && !error && data?.theme) {
+        setTheme(data.theme);
+      }
+    }
+
+    loadTheme();
+    return () => {
+      ignore = true;
+    };
+  }, [setTheme, supabase]);
+
+  // Returns a function that both applies the theme locally AND persists it
+  const persistTheme = React.useCallback(
+    async (newTheme: ThemeSelection) => {
+      setTheme(newTheme);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) return;
+
+      await supabase
+        .from('user_settings')
+        .update({ theme: newTheme, updated_at: new Date().toISOString() })
+        .eq('account_id', user.id);
+    },
+    [setTheme, supabase],
+  );
+
+  return { persistTheme };
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 type ThemeTogglerButtonProps = React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     modes?: ThemeSelection[];
@@ -55,13 +114,14 @@ function ThemeTogglerButton({
   className,
   ...props
 }: ThemeTogglerButtonProps) {
-  const { theme, resolvedTheme, setTheme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
+  const { persistTheme } = useSupabaseThemeSync();
 
   return (
     <ThemeTogglerPrimitive
       theme={theme as ThemeSelection}
       resolvedTheme={resolvedTheme as Resolved}
-      setTheme={setTheme}
+      setTheme={persistTheme}
       direction={direction}
       onImmediateChange={onImmediateChange}
     >

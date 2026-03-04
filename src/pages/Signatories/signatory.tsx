@@ -311,7 +311,6 @@ export default function SignatoriesPage() {
                   {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
                 </div>
 
-                {/* Role Type — shadcn DropdownMenu */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Role Type
@@ -371,7 +370,6 @@ export default function SignatoriesPage() {
           </CardContent>
         </Card>
 
-        {/* Table Card */}
         <Card className="rounded-2xl overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between px-6 py-4 border-b bg-muted/40 rounded-t-2xl">
             <h2 className="text-sm font-semibold">All Signatories</h2>

@@ -6,7 +6,7 @@ function HeroSection() {
     const [commitMessage, setCommitMessage] = useState("");
 
     useEffect(() => {
-    fetch("https://api.github.com/repos/JessieJunatas/CAV-RHS/commits?per_page=1")
+    fetch("https://api.github.com/repos/JessieJunatas/CAV-RHS/commits?sha=dev&per_page=1")
         .then((res) => res.json())
         .then((data) => {
         setCommitMessage(data[0].commit.message);
@@ -19,12 +19,9 @@ function HeroSection() {
 
   return (
     <div className="pt-16 text-center flex flex-col items-center gap-4">
-      <a
-        href="https://github.com/JessieJunatas/CAV-RHS"
-        className="inline-flex items-center gap-1 rounded-full border px-3 text-sm text-foreground hover:bg-muted transition"
-      >
+      <div className="inline-flex items-center gap-1 rounded-full border px-3 text-sm text-foreground">
         {commitMessage} <MoveRight className="size-4"/>
-      </a>
+      </div>
 
       <h1 className="text-5xl font-semibold">
         Automate Your Document Workflow

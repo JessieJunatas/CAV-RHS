@@ -1,4 +1,5 @@
 import './App.css'
+import { useState, useEffect } from 'react'
 import Home from './pages/home/homeData'
 import ViewPage from './pages/view/PreviewPage'
 import EditPage from './pages/edit/EditPage'
@@ -6,7 +7,6 @@ import { Navbar } from './pages/navbar'
 import { ThemeProvider } from "@/components/theme-provider"
 import LoginPage from "./pages/LoginPage/login"
 import FormRouter from './pages/home/Content/Forms/FormRouter'
-import CAVPreview from './pages/home/Content/Forms/CAV/CAVpreview'
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 import ProtectedRoute from './components/route/route'
 import ArchivePage from "./pages/archive/Archive"
@@ -16,8 +16,22 @@ import Audit from './pages/Information/audit/audit'
 import SignatoriesPage from './pages/Signatories/signatory'
 import DocsPage from './pages/docs/docs'
 import Settings from './pages/settings/Settings'
+import { AppearanceProvider, resetAppearanceToDefaults } from './components/appearance-provider'
+import { supabase } from '@/lib/supabase'
 
+type Theme = 'dark' | 'light' | 'system'
+type FontSize = 'small' | 'medium' | 'large'
+type FontStyle = 'Inter' | 'Roboto' | 'Poppins' | 'Montserrat' | 'Open Sans'
 
+const DEFAULT_THEME: Theme = 'dark'
+const STORAGE_KEY = 'vite-ui-theme'
+
+function resetThemeToDefaults() {
+  localStorage.removeItem(STORAGE_KEY)
+  const root = window.document.documentElement
+  root.classList.remove('light', 'dark', 'system')
+  root.classList.add(DEFAULT_THEME)
+}
 
 function Layout() {
   const location = useLocation()
@@ -39,7 +53,6 @@ function Layout() {
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
           <Route path="/docs" element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
-          <Route path="/forms/cav/view/:id" element={<ProtectedRoute><CAVPreview /></ProtectedRoute>} />
           <Route path="/forms/:formType" element={<ProtectedRoute><FormRouter /></ProtectedRoute>} />
         </Routes>
       </main>
@@ -66,12 +79,70 @@ function Layout() {
   )
 }
 
+type UserSettings = {
+  theme: Theme
+  fontSize: FontSize
+  fontStyle: FontStyle
+} | null
+
 function App() {
+  const [forcedTheme, setForcedTheme] = useState<Theme | null>(null)
+  const [forcedFontSize, setForcedFontSize] = useState<FontSize | null>(null)
+  const [forcedFontStyle, setForcedFontStyle] = useState<FontStyle | null>(null)
+
+  useEffect(() => {
+    async function fetchSettingsForUser(userId: string) {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('theme, font_size, font_style')
+        .eq('account_id', userId)
+        .single()
+
+      if (!error && data) {
+        if (data.theme)      setForcedTheme(data.theme as Theme)
+        if (data.font_size)  setForcedFontSize(data.font_size as FontSize)
+        if (data.font_style) setForcedFontStyle(data.font_style as FontStyle)
+      }
+    }
+
+    // Apply settings for whoever is already logged in on mount
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) fetchSettingsForUser(user.id)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          fetchSettingsForUser(session.user.id)
+        }
+        if (event === 'SIGNED_OUT') {
+          // Reset everything — login page renders with clean defaults
+          resetThemeToDefaults()
+          resetAppearanceToDefaults()
+          setForcedTheme(DEFAULT_THEME)
+          setForcedFontSize(null)
+          setForcedFontStyle(null)
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
+
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <BrowserRouter>
-        <Layout />
-      </BrowserRouter>
+    <ThemeProvider
+      defaultTheme={DEFAULT_THEME}
+      storageKey={STORAGE_KEY}
+      forcedTheme={forcedTheme}
+    >
+      <AppearanceProvider
+        forcedFontSize={forcedFontSize}
+        forcedFontStyle={forcedFontStyle}
+      >
+        <BrowserRouter>
+          <Layout />
+        </BrowserRouter>
+      </AppearanceProvider>
     </ThemeProvider>
   )
 }

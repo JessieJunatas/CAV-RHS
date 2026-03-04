@@ -232,7 +232,6 @@ function ArchivePage() {
       <div className="bg-background text-foreground">
         <div className="mx-auto max-w-4xl px-6 py-10">
 
-          {/* Header */}
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
@@ -253,7 +252,6 @@ function ArchivePage() {
             )}
           </div>
 
-          {/* Bulk action bar */}
           {!loading && records.length > 0 && (
             <div className="mb-4 flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-2.5">
               <div className="flex items-center gap-3">
@@ -269,7 +267,6 @@ function ArchivePage() {
 
               {someSelected && (
                 <div className="flex items-center gap-2">
-                  {/* Bulk restore */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -301,7 +298,6 @@ function ArchivePage() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  {/* Bulk delete */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -339,7 +335,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -359,7 +354,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Empty state */}
           {!loading && records.length === 0 && (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
@@ -370,7 +364,6 @@ function ArchivePage() {
             </div>
           )}
 
-          {/* Records list */}
           {!loading && records.length > 0 && (
             <div className="space-y-3">
               {records.map((record) => (
@@ -382,21 +375,18 @@ function ArchivePage() {
                       : "border-border/60 hover:border-border"
                   }`}
                 >
-                  {/* Checkbox */}
                   <Checkbox
                     checked={selected.has(record.id)}
                     onCheckedChange={() => toggleSelect(record.id)}
                     className="rounded shrink-0"
                   />
 
-                  {/* Avatar */}
                   <img
                     src={`https://avatar.vercel.sh/${encodeURIComponent(record.full_legal_name)}`}
                     alt={record.full_legal_name}
                     className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-border"
                   />
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm truncate">{record.full_legal_name}</p>
                     <div className="flex items-center gap-3 mt-0.5">
@@ -411,9 +401,7 @@ function ArchivePage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* View */}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -429,7 +417,6 @@ function ArchivePage() {
                       <TooltipContent side="bottom" className="text-xs">View record</TooltipContent>
                     </Tooltip>
 
-                    {/* Restore */}
                     <AlertDialog>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -469,7 +456,6 @@ function ArchivePage() {
                       </AlertDialogContent>
                     </AlertDialog>
 
-                    {/* Delete */}
                     <AlertDialog>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -517,7 +503,6 @@ function ArchivePage() {
         </div>
       </div>
 
-      {/* Toast stack */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {toasts.map((toast) =>
           toast.type === "error" ? (

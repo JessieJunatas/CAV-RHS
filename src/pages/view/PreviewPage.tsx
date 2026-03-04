@@ -70,7 +70,6 @@ function ViewPage() {
     <div className="bg-background">
       <div className="mx-auto max-w-4xl px-6 py-8">
 
-        {/* Top nav */}
         <div className="mb-8 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/")}
             className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
@@ -86,7 +85,6 @@ function ViewPage() {
           </div>
         </div>
 
-        {/* Hero header */}
         <div className="mb-8 flex items-center gap-5">
           <img
             src={`https://avatar.vercel.sh/${encodeURIComponent(form.full_legal_name)}`}
@@ -94,7 +92,6 @@ function ViewPage() {
             className="h-16 w-16 rounded-2xl object-cover shadow-sm ring-1 ring-border"
           />
           <div className="min-w-0">
-            {/* ← form type badge here */}
             <div className="flex items-center gap-2 mb-1">
               <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-medium">
                 {getFormTypeLabel(form.form_type)}
@@ -112,13 +109,11 @@ function ViewPage() {
 
         <Separator className="mb-8" />
 
-        {/* Sections */}
         <div className="space-y-8">
           <Section title="Student Information" icon={<User className="h-4 w-4" />}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Full Legal Name" value={form.full_legal_name} icon={<User className="h-3.5 w-3.5" />} />
               <Field label="Control Number" value={form.control_no} icon={<Hash className="h-3.5 w-3.5" />} />
-              {/* K-12 specific fields */}
               {form.lrn && <Field label="LRN" value={form.lrn} icon={<Hash className="h-3.5 w-3.5" />} />}
               {form.reference_no && <Field label="Reference No." value={form.reference_no} icon={<Hash className="h-3.5 w-3.5" />} />}
             </div>
