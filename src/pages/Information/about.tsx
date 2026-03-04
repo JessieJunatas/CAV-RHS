@@ -1,7 +1,7 @@
 import {
-  FileText, Zap, Shield, Printer,
+  Zap, Shield, Printer,
   ClipboardList, CheckCircle, ArrowRight,
-  Database, FileBadge, MailCheck, ScrollText,
+  Database, FileBadge,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -123,9 +123,6 @@ export default function About() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               { icon: <FileBadge className="h-4 w-4" />, label: "Certification, Authentication & Verification (CAV)" },
-              { icon: <ScrollText className="h-4 w-4" />, label: "Academic Certifications" },
-              { icon: <MailCheck className="h-4 w-4" />, label: "Verification Letters" },
-              { icon: <FileText className="h-4 w-4" />, label: "Custom Registrar Forms" },
             ].map((d) => (
               <div
                 key={d.label}

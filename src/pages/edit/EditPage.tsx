@@ -19,16 +19,15 @@ import {
   FileText, Download,
 } from "lucide-react"
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionBlock({ title, icon, children }: {
   title: string; icon: React.ReactNode; children: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40 bg-muted/30">
-        <span className="text-muted-foreground/60">{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/70">{title}</span>
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</span>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -40,10 +39,10 @@ function FieldRow({ label, icon, changed, children }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-        <span className="text-muted-foreground/40">{icon}</span>
+      <label className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span className="text-muted-foreground">{icon}</span>
         {label}
-        {changed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />}
+        {changed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />}
       </label>
       {children}
     </div>
@@ -55,11 +54,11 @@ function StatusCard({ active, changed, label, children }: {
 }) {
   return (
     <div className={`rounded-xl border p-3.5 transition-all duration-200 ${
-      active ? "border-primary/25 bg-primary/5" : "border-border/40 bg-muted/20 hover:border-border/70"
-    } ${changed ? "ring-1 ring-amber-500/30" : ""}`}>
+      active ? "border-border bg-muted" : "border-border bg-muted hover:border-border"
+    } ${changed ? "ring-1 ring-border" : ""}`}>
       <div className="flex items-center gap-2.5 mb-3">
         <div className={`h-4 w-4 shrink-0 rounded flex items-center justify-center text-[10px] font-black transition-all duration-200 ${
-          active ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background text-transparent"
+          active ? "bg-muted-foreground text-background" : "border border-border bg-background text-background"
         }`}>✓</div>
         <span className={`text-xs font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
       </div>
@@ -74,8 +73,8 @@ function DirtyInput({ name, value, originalValue, onChange, type = "text", place
     <Input name={name} value={value || ""} onChange={onChange} type={type} placeholder={placeholder}
       className={`h-9 rounded-lg text-sm transition-all ${className} ${
         changed
-          ? "border-amber-500/50 bg-amber-500/5 focus-visible:ring-amber-500/20"
-          : "border-border/60 bg-background focus-visible:ring-primary/20"
+          ? "border-border bg-muted focus-visible:ring-border"
+          : "border-border bg-background focus-visible:ring-border"
       }`}
     />
   )
@@ -87,14 +86,13 @@ function SmallDirtyInput({ name, value, originalValue, onChange, placeholder, cl
     <Input name={name} value={value || ""} onChange={onChange} placeholder={placeholder}
       className={`h-8 text-xs rounded-lg transition-all ${className} ${
         changed
-          ? "border-amber-500/50 bg-amber-500/5 focus-visible:ring-amber-500/20"
-          : "border-border/60 bg-background focus-visible:ring-primary/20"
+          ? "border-border bg-muted focus-visible:ring-border"
+          : "border-border bg-background focus-visible:ring-border"
       }`}
     />
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function EditPage() {
   const { id } = useParams()
@@ -194,22 +192,20 @@ export default function EditPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        {/* ── Header ── */}
         <div className="flex items-center justify-between mb-7">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/")}
-              className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2 h-8">
-              <ArrowLeft className="h-3.5 w-3.5" />Back
+              className="gap-1.5 text-muted-foreground hover:text-foreground h-8">
+              <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
-            <div className="h-4 w-px bg-border/60" />
+            <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <Pencil className="h-4 w-4 text-secondary" />
+                <Pencil className="h-4 w-4 text-primary-foreground" />
               </div>
               <div>
                 <div className="flex items-center gap-2 leading-none">
                   <h1 className="text-base font-bold tracking-tight">Edit CAV Form</h1>
-                  {/* ← form type badge */}
                   <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
                     {getFormTypeLabel(formData.form_type)}
                   </Badge>
@@ -222,7 +218,7 @@ export default function EditPage() {
           <div className="flex items-center gap-2">
             {isDirty && !saved && (
               <>
-                <div className="flex items-center gap-1.5 text-[11px] text-amber-600 font-medium">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                   <CircleDot className="h-3 w-3" />Unsaved changes
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => { setFormData(originalData); setSaved(false); setError(null) }}
@@ -232,7 +228,7 @@ export default function EditPage() {
               </>
             )}
             {saved && (
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                 <CheckCircle2 className="h-3 w-3" />Saved!
               </div>
             )}
@@ -247,13 +243,12 @@ export default function EditPage() {
         </div>
 
         {error && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/8 px-4 py-3">
+          <div className="mb-5 flex items-center gap-3 rounded-xl border border-destructive bg-destructive/10 px-4 py-3">
             <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
             <p className="text-sm text-destructive">{error}</p>
           </div>
         )}
 
-        {/* ── Main grid ── */}
         <div className="grid grid-cols-[1fr_520px] gap-5 items-start">
           <div className="space-y-4">
 
@@ -270,7 +265,6 @@ export default function EditPage() {
                     onChange={handleChange} placeholder="e.g. RHS-031626" />
                 </FieldRow>
 
-                {/* K-12 specific field */}
                 {isK12 && (
                   <FieldRow label="LRN / Reference No." icon={<Hash className="h-3 w-3" />} changed={ch("lrn")}>
                     <DirtyInput name="lrn" value={formData.lrn} originalValue={originalData.lrn}
@@ -307,7 +301,7 @@ export default function EditPage() {
             </SectionBlock>
 
             <SectionBlock title="Student Status" icon={<BookOpen className="h-3.5 w-3.5" />}>
-              <p className="text-[11px] text-muted-foreground/50 mb-3.5">
+              <p className="text-[11px] text-muted-foreground mb-3.5">
                 Optional — values auto-fill and check the corresponding box in the PDF.
               </p>
               <div className="space-y-2.5">
@@ -351,27 +345,27 @@ export default function EditPage() {
 
           {/* ── RIGHT: sticky PDF preview ── */}
           <div className="sticky top-6 space-y-3">
-            <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">Live Preview</span>
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Live Preview</span>
                 </div>
                 {isDirty && !generatingPreview && (
-                  <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold bg-amber-500/10 text-amber-600">
-                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />Unsaved
+                  <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold bg-background text-muted-foreground">
+                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground animate-pulse" />Unsaved
                   </div>
                 )}
                 {!isDirty && !generatingPreview && (
-                  <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold bg-emerald-500/10 text-emerald-600">
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Synced
+                  <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold bg-background text-muted-foreground">
+                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />Synced
                   </div>
                 )}
               </div>
-              <div className="relative bg-muted/20" style={{ height: "780px" }}>
+              <div className="relative bg-muted" style={{ height: "780px" }}>
                 {generatingPreview && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/20 z-10">
-                    <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted z-10">
+                    <div className="h-7 w-7 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
                     <p className="text-sm text-muted-foreground">Updating preview…</p>
                   </div>
                 )}
@@ -406,8 +400,8 @@ function LoadingSkeleton() {
         <div className="grid grid-cols-[1fr_420px] gap-5">
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="rounded-2xl border border-border/50 overflow-hidden">
-                <div className="h-11 bg-muted/30 border-b border-border/40" />
+              <div key={i} className="rounded-2xl border border-border overflow-hidden">
+                <div className="h-11 bg-muted border-b border-border" />
                 <div className="p-5 grid grid-cols-2 gap-4">
                   {Array.from({ length: i === 2 ? 3 : 4 }).map((_, j) => (
                     <div key={j} className="space-y-1.5">

@@ -212,7 +212,7 @@ const Navbar = ({
         <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-screen-xl mx-auto w-full">
           {/* Logo */}
           <Link to={logo.url} className="flex items-center gap-2.5 group shrink-0">
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-primary/8 group-hover:bg-primary/14 transition-colors">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-lg">
               <img
                 src={logo.src}
                 className="w-10 h-10 object-contain"

@@ -14,6 +14,7 @@ import About from './pages/Information/about'
 import { Heart } from 'lucide-react'
 import Audit from './pages/Information/audit/audit'
 import SignatoriesPage from './pages/Signatories/signatory'
+import DocsPage from './pages/docs/docs'
 
 function Layout() {
   const location = useLocation()
@@ -27,19 +28,20 @@ function Layout() {
         <Routes>
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/view/:id" element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
-          <Route path="/edit/:id" element={<EditPage />} />
+          <Route path="/edit/:id" element={<ProtectedRoute><EditPage /></ProtectedRoute>} />
           <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
+          <Route path="/docs" element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
           <Route path="/forms/cav/view/:id" element={<ProtectedRoute><CAVPreview /></ProtectedRoute>} />
           <Route path="/forms/:formType" element={<ProtectedRoute><FormRouter /></ProtectedRoute>} />
         </Routes>
       </main>
 
       {!isAuthPage && (
-        <footer className="py-2 px-4 border-t border-border/40 bg-background/80 backdrop-blur-sm">
+        <footer className="sticky bottom-0 z-10 py-2 px-4 border-t border-border/40 bg-background/80 backdrop-blur-sm">
           <div className="flex items-center py-3 text-xs">
             <div className="flex-1 text-left font-mono text-muted-foreground/50">
               <span>
