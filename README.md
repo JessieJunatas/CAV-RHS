@@ -22,7 +22,7 @@
 ![Supabase](https://img.shields.io/badge/Supabase-backend-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-![Status](https://img.shields.io/badge/status-work%20in%20progress-yellow?style=flat-square)
+![Status](https://img.shields.io/badge/status-work%20complete-green?style=flat-square)
 
 <br />
 
