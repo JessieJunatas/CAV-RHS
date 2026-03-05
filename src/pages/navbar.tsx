@@ -83,7 +83,7 @@ const Navbar = ({
     url: "/",
     src: "/RHS-Logo.png",
     alt: "RHS Logo",
-    title: "Auto-Forms",
+    title: "CAV-RHS",
   },
   menu = [
     { title: "Home", url: "/" },

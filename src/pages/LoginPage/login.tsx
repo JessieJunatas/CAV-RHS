@@ -8,7 +8,7 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
         <a href="#" className="flex items-center gap-2 font-bold">
           <img src="/RHS-Logo.png" alt="RHS Logo" className="size-8 object-contain" />
-          Auto-Forms
+          CAV-RHS
         </a>
         </div>
         <div className="flex flex-1 items-center justify-center">

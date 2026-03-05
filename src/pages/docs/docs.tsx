@@ -57,7 +57,7 @@ const NAV_SECTIONS: NavSection[] = [
 
 const TOC_FOR_PAGE: Record<string, TocItem[]> = {
   introduction:   [
-    { id: "what-is",      label: "What is Auto-Forms?" },
+    { id: "what-is",      label: "What is CAV-RHS?" },
     { id: "who-uses",     label: "Who uses it?" },
     { id: "how-it-works", label: "How it works" },
     { id: "stack",        label: "Tech stack" },
@@ -385,9 +385,9 @@ function PageContent({ pageId, onNavigate }: { pageId: string; onNavigate: (id: 
           Introduction
         </PageTitle>
 
-        <SectionHeading id="what-is">What is Auto Forms?</SectionHeading>
+        <SectionHeading id="what-is">What is CAV-RHS?</SectionHeading>
         <P>
-          <strong className="text-foreground">Auto Forms</strong> is a web application built for the school's Registrar's office. 
+          <strong className="text-foreground">CAV-RHS</strong> is a web application built for the school's Registrar's office. 
           It replaces manual, paper-based CAV form processing with a structured digital workflow: fill a form, preview the 
           generated PDF, confirm the details, and submit.
         </P>
@@ -396,7 +396,7 @@ function PageContent({ pageId, onNavigate }: { pageId: string; onNavigate: (id: 
           downloaded at any time from the record's view page.
         </P>
         <Callout variant="info">
-          Auto-Forms supports two form types: <strong>Type 1 (JHS)</strong> for Junior High School students, and <strong>Type 2 (K-12)</strong> which is identical but adds a Learner Reference Number (LRN) field.
+          CAV-RHS supports two form types: <strong>Type 1 (JHS)</strong> for Junior High School students, and <strong>Type 2 (K-12)</strong> which is identical but adds a Learner Reference Number (LRN) field.
         </Callout>
 
         <SectionHeading id="who-uses">Who uses it?</SectionHeading>
@@ -717,7 +717,7 @@ function PageContent({ pageId, onNavigate }: { pageId: string; onNavigate: (id: 
 
         <SectionHeading id="audit-overview">Overview</SectionHeading>
         <P>
-          Every meaningful action in Auto-Forms is recorded in the <Inline>audit_logs</Inline> table. The audit log is
+          Every meaningful action in CAV-RHS is recorded in the <Inline>audit_logs</Inline> table. The audit log is
           append-only — entries are never modified or deleted. You can view the full log at <Inline>/audit-logs</Inline>.
         </P>
         <P>
@@ -874,7 +874,7 @@ await logAudit({
     case "authentication": return (
       <>
         <PageBreadcrumb section="Getting Started" label="Authentication" />
-        <PageTitle subtitle="Auto-Forms uses Supabase Auth. Every page except /login requires an active session.">
+        <PageTitle subtitle="CAV-RHS uses Supabase Auth. Every page except /login requires an active session.">
           Authentication
         </PageTitle>
 
@@ -998,7 +998,7 @@ await logAudit({
     case "database": return (
       <>
         <PageBreadcrumb section="Reference" label="Database Schema" />
-        <PageTitle subtitle="Auto-Forms uses Supabase (Postgres). All tables and their columns are documented below.">
+        <PageTitle subtitle="CAV-RHS uses Supabase (Postgres). All tables and their columns are documented below.">
           Database Schema
         </PageTitle>
 

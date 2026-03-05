@@ -15,7 +15,7 @@ export default function About() {
           <Badge variant="outline" className="text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">
             Registrar's Office
           </Badge>
-          <h1 className="text-4xl font-bold tracking-tight">Auto-Forms</h1>
+          <h1 className="text-4xl font-bold tracking-tight">CAV-RHS</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
             A document automation system built for the Registrar's Office to streamline
             generation of academic documents — eliminating manual editing, repetitive
@@ -134,7 +134,7 @@ export default function About() {
 
         <div className="rounded-xl border border-border/40 bg-muted/30 px-5 py-4">
           <p className="text-xs text-muted-foreground/60 leading-relaxed text-center">
-            Auto-Forms is an internal tool developed for the Registrar's Office.
+            CAV-RHS is an internal tool developed for the Registrar's Office.
             For support or feature requests, contact your system administrator.
           </p>
         </div>

@@ -164,7 +164,7 @@ export async function generateCavK12PDF(form: any) {
   pdfDoc.setTitle(title)
   pdfDoc.setAuthor("Rizal High School")
   pdfDoc.setSubject("Certification, Authentication and Verification — K-12")
-  pdfDoc.setCreator("RHS Auto-Forms System")
+  pdfDoc.setCreator("CAV-RHS")
 
   const pdfBytes: Uint8Array = await pdfDoc.save()
   const blob = new Blob([pdfBytes as any], { type: "application/pdf" })
