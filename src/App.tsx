@@ -1,10 +1,10 @@
 import './App.css'
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import Home from './pages/home/homeData'
 import ViewPage from './pages/view/PreviewPage'
 import EditPage from './pages/edit/EditPage'
 import { Navbar } from './pages/navbar'
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/context/theme-provider"
 import LoginPage from "./pages/LoginPage/login"
 import FormRouter from './pages/home/Content/Forms/FormRouter'
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
@@ -18,30 +18,50 @@ import DocsPage from './pages/docs/docs'
 import Settings from './pages/settings/Settings'
 import { AppearanceProvider, resetAppearanceToDefaults } from './components/appearance-provider'
 import { supabase } from '@/lib/supabase'
+import PDFFieldEditor from './components/pdf-editor'
 
-type Theme = 'dark' | 'light' | 'system'
-type FontSize = 'small' | 'medium' | 'large'
-type FontStyle = 'Inter' | 'Roboto' | 'Poppins' | 'Montserrat' | 'Open Sans'
-
-const DEFAULT_THEME: Theme = 'dark'
+const DEFAULT_THEME = 'dark'
 const STORAGE_KEY = 'vite-ui-theme'
+
+async function applyUserTheme(userId: string) {
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('theme')
+    .eq('account_id', userId)
+    .single()
+
+  if (!error && data?.theme) {
+    localStorage.setItem(STORAGE_KEY, data.theme)
+    const root = window.document.documentElement
+    root.classList.remove('light', 'dark')
+    root.classList.add(data.theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : data.theme
+    )
+  }
+}
 
 function resetThemeToDefaults() {
   localStorage.removeItem(STORAGE_KEY)
   const root = window.document.documentElement
-  root.classList.remove('light', 'dark', 'system')
+  root.classList.remove('light', 'dark')
   root.classList.add(DEFAULT_THEME)
 }
+
+// Routes where the footer and normal scroll layout should not apply.
+// These are fullscreen tool pages that manage their own layout.
+const FULLSCREEN_TOOL_ROUTES = ['/settings/pdf-template']
 
 function Layout() {
   const location = useLocation()
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup'
+  const isFullscreenTool = FULLSCREEN_TOOL_ROUTES.includes(location.pathname)
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className={isFullscreenTool ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
       {!isAuthPage && <Navbar />}
 
-      <main className="flex-1">
+      <main className={isFullscreenTool ? "flex-1 overflow-hidden" : "flex-1"}>
         <Routes>
           <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/view/:id" element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
@@ -49,6 +69,7 @@ function Layout() {
           <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor /></ProtectedRoute>} />
           <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
@@ -57,7 +78,8 @@ function Layout() {
         </Routes>
       </main>
 
-      {!isAuthPage && (
+      {/* Footer hidden on auth pages AND fullscreen tool pages */}
+      {!isAuthPage && !isFullscreenTool && (
         <footer className="sticky bottom-0 z-10 py-2 px-4 border-t border-border/40 bg-background/80 backdrop-blur-sm">
           <div className="flex items-center py-3 text-xs">
             <div className="flex-1 text-left font-mono text-muted-foreground/50">
@@ -80,59 +102,27 @@ function Layout() {
 }
 
 function App() {
-  const [forcedTheme, setForcedTheme] = useState<Theme | null>(null)
-  const [forcedFontSize, setForcedFontSize] = useState<FontSize | null>(null)
-  const [forcedFontStyle, setForcedFontStyle] = useState<FontStyle | null>(null)
-
   useEffect(() => {
-    async function fetchSettingsForUser(userId: string) {
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('theme, font_size, font_style')
-        .eq('account_id', userId)
-        .single()
-
-      if (!error && data) {
-        if (data.theme)      setForcedTheme(data.theme as Theme)
-        if (data.font_size)  setForcedFontSize(data.font_size as FontSize)
-        if (data.font_style) setForcedFontStyle(data.font_style as FontStyle)
-      }
-    }
-
-    // Apply settings for whoever is already logged in on mount
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) fetchSettingsForUser(user.id)
+      if (user) applyUserTheme(user.id)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          fetchSettingsForUser(session.user.id)
-        }
-        if (event === 'SIGNED_OUT') {
-          // Reset everything — login page renders with clean defaults
-          resetThemeToDefaults()
-          resetAppearanceToDefaults()
-          setForcedTheme(DEFAULT_THEME)
-          setForcedFontSize(null)
-          setForcedFontStyle(null)
-        }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        applyUserTheme(session.user.id)
       }
-    )
+      if (event === 'SIGNED_OUT') {
+        resetThemeToDefaults()
+        resetAppearanceToDefaults()
+      }
+    })
 
     return () => subscription.unsubscribe()
   }, [])
 
   return (
-    <ThemeProvider
-      defaultTheme={DEFAULT_THEME}
-      storageKey={STORAGE_KEY}
-      forcedTheme={forcedTheme}
-    >
-      <AppearanceProvider
-        forcedFontSize={forcedFontSize}
-        forcedFontStyle={forcedFontStyle}
-      >
+    <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
+      <AppearanceProvider>
         <BrowserRouter>
           <Layout />
         </BrowserRouter>

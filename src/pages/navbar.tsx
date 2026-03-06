@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Link, useLocation } from "react-router-dom";
 import {
   BookText,
@@ -55,7 +56,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { ThemeTogglerButton } from "../components/theme-toggler";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -210,7 +211,7 @@ const Navbar = ({
           }
         `}
       >
-        <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-screen-xl mx-auto w-full">
+        <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-7xl mx-auto w-full">
           <Link to={logo.url} className="flex items-center gap-2.5 group shrink-0">
             <div className="relative flex items-center justify-center w-8 h-8 rounded-lg">
               <img
@@ -236,7 +237,7 @@ const Navbar = ({
             <Link to="/settings" className="flex items-center">
                       <Settings className="size-4 mr-2" />
             </Link>
-            <ThemeTogglerButton variant="ghost" />
+            <ModeToggle variant="polygon" />
             <div className="w-px h-5 bg-border mx-1" />
 
             {user ? (
@@ -246,7 +247,7 @@ const Navbar = ({
                     <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-semibold select-none">
                       {avatarInitial}
                     </div>
-                    <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
+                    <span className="text-sm font-medium text-foreground max-w-30 truncate">
                       {displayName}
                     </span>
                     <ChevronRight className="size-3 text-muted-foreground rotate-90" />
@@ -289,7 +290,7 @@ const Navbar = ({
           </Link>
 
           <div className="flex items-center gap-1.5">
-            <ThemeTogglerButton variant="ghost" />
+            <ModeToggle variant="polygon" />
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-9 rounded-lg">

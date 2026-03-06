@@ -1,19 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/lib/supabase"
-import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont } from "pdf-lib"
-
-function drawCentered(
-  page: PDFPage,
-  text: string | undefined,
-  centerX: number,
-  y: number,
-  size: number,
-  font: PDFFont,
-  color = rgb(0, 0, 0)
-) {
-  if (!text) return
-  const x = centerX - font.widthOfTextAtSize(text, size) / 2
-  page.drawText(text, { x, y, size, font, color })
-}
+import { PDFDocument } from "pdf-lib"
 
 function formatDate(date: string) {
   if (!date) return ""
@@ -73,97 +60,97 @@ export async function generateCavPDF(form: any) {
     }
   }
 
-  const existingPdfBytes = await fetch("/CAV_Format_JHS.pdf").then(res => res.arrayBuffer())
+  // ── Fetch template from Supabase Storage ──
+  const { data: urlData } = supabase.storage.from("templates").getPublicUrl("CAV_Format_JHS.pdf")
+  const existingPdfBytes = await fetch(urlData.publicUrl).then(res => res.arrayBuffer())
+
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
-  const pages = pdfDoc.getPages()
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const today = new Date().toISOString()
+  const pdfForm = pdfDoc.getForm()
 
   const name = (form.full_legal_name ?? "").toUpperCase()
+  const today = new Date().toISOString()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
-  let fontSize = 11
-  const maxWidth = 125
-  while (boldFont.widthOfTextAtSize(name, fontSize) > maxWidth && fontSize > 7) fontSize -= 0.5
+  function setField(fieldName: string, value: string) {
+    try {
+      pdfForm.getTextField(fieldName).setText(value ?? "")
+    } catch {
+      console.warn(`Field "${fieldName}" not found in PDF`)
+    }
+  }
 
-  const p1 = pages[0]
-  drawCentered(p1, form.control_no, 126, 650, 11, font)
-  drawCentered(p1, name, 236, 650, fontSize, boldFont)
-  drawCentered(p1, formatDate(form.date_of_application), 378.5, 650, 11, font)
-  drawCentered(p1, formatDate(form.date_of_transmission), 499.5, 650, 11, font)
-  if (prepareName) p1.drawText(prepareName, { x: 92, y: 510, size: fontSize, font: boldFont, color: rgb(0, 0, 0) })
-  drawCentered(p1, preparePosition, 150, 495, 9, boldFont)
-  drawCentered(p1, submitName, 421.6, 390, fontSize, boldFont)
-  drawCentered(p1, submitPosition, 421.6, 375, 10, boldFont)
+  // Page 1 — Transmittal
+  setField("control_no", form.control_no ?? "")
+  setField("student_name", name)
+  setField("date_of_application", formatDate(form.date_of_application))
+  setField("date_of_transmittal", formatDate(form.date_of_transmission))
+  setField("prepared_by_name", prepareName)
+  setField("prepared_by_position", preparePosition)
+  setField("submitted_by_name", submitName)
+  setField("submitted_by_position", submitPosition)
 
-  const p2 = pages[1]
-  drawCentered(p2, formatDate(today), 306, 712, fontSize, boldFont)
-  drawCentered(p2, name, 180, 640, fontSize, boldFont)
-  drawCentered(p2, submitName, 440, 350, fontSize, boldFont)
-  drawCentered(p2, submitPosition, 440, 335, 10, boldFont)
+  // Page 2 — 1st Indorsement
+  setField("p2_date", formatDate(today))
+  setField("p2_student_name", name)
+  setField("p2_submitted_by_name", submitName)
+  setField("p2_submitted_by_position", submitPosition)
 
-  const p3 = pages[2]
-  drawCentered(p3, name, 380, 675, fontSize, boldFont)
+  // Page 3 — Certification of Enrolment/Completion/Graduation
+  setField("p3_student_name", name)
 
-  // Enrolled — unchanged
   const enrolledGrade = (form.enrolled_grade ?? "").trim()
   const enrolledSY = (form.enrolled_sy ?? "").trim()
   if (enrolledGrade || enrolledSY) {
-    p3.drawText("X", { x: 132, y: 620, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (enrolledGrade) p3.drawText(enrolledGrade, { x: 215, y: 622, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (enrolledSY) p3.drawText(enrolledSY, { x: 390, y: 622, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    setField("p3_check_enrolled", "X")
+    setField("p3_enrolled_grade", enrolledGrade)
+    setField("p3_enrolled_sy", enrolledSY)
   }
 
-  // Completed — now uses status_completed_grade / status_completed_sy
   const completedGrade = (form.status_completed_grade ?? "").trim()
   const completedSY = (form.status_completed_sy ?? "").trim()
   if (completedGrade || completedSY) {
-    p3.drawText("X", { x: 132, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (completedGrade) p3.drawText(completedGrade, { x: 215, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    if (completedSY) p3.drawText(completedSY, { x: 390, y: 595, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    setField("p3_check_completed", "X")
+    setField("p3_completed_grade", completedGrade)
+    setField("p3_completed_sy", completedSY)
   }
 
-  // Graduated — now uses status_graduated_sy
   const graduatedSY = (form.status_graduated_sy ?? "").trim()
   if (graduatedSY) {
-    p3.drawText("X", { x: 132, y: 570, size: 10, font: boldFont, color: rgb(0, 0, 0) })
-    p3.drawText(graduatedSY, { x: 150, y: 545, size: 10, font: boldFont, color: rgb(0, 0, 0) })
+    setField("p3_check_graduated", "X")
+    setField("p3_graduated_sy", graduatedSY)
   }
 
-  drawCentered(p3, ordinal, 305, 510, 10, boldFont)
-  drawCentered(p3, month, 400, 510, 10, boldFont)
-  drawCentered(p3, year, 470, 510, 10, boldFont)
-  drawCentered(p3, name, 260, 488, fontSize, boldFont)
-  drawCentered(p3, submitName, 421.6, 350, fontSize, boldFont)
-  drawCentered(p3, submitPosition, 421.6, 335, 10, boldFont)
+  setField("p3_day", ordinal)
+  setField("p3_month", month)
+  setField("p3_year", year)
+  setField("p3_request_name", name)
+  setField("p3_submitted_by_name", submitName)
+  setField("p3_submitted_by_position", submitPosition)
 
-  // p4 — still uses school_year_completed and school_year_graduated from Student Information
-  const p4 = pages[3]
-  drawCentered(p4, name, 328.5, 665, fontSize, boldFont)
-  if (form.school_year_completed) {
-    p4.drawText(form.school_year_completed, { x: 307, y: 574, size: 11, font: boldFont, color: rgb(0, 0, 0) })
-  }
-  if (form.school_year_graduated) {
-    p4.drawText(formatDate(form.school_year_graduated), { x: 307, y: 556, size: 11, font: boldFont, color: rgb(0, 0, 0) })
-  }
-  drawCentered(p4, ordinal, 295, 450, 10, boldFont)
-  drawCentered(p4, month, 395, 450, 10, boldFont)
-  drawCentered(p4, year, 470, 450, 10, boldFont)
-  drawCentered(p4, submitName, 421.6, 290, fontSize, boldFont)
-  drawCentered(p4, submitPosition, 421.6, 275, 10, boldFont)
+  // Page 4 — Certification of English as Medium of Instruction
+  setField("p4_student_name", name)
+  setField("p4_sy_completed", form.school_year_completed ?? "")
+  setField("p4_sy_graduated", formatDate(form.school_year_graduated))
+  setField("p4_day", ordinal)
+  setField("p4_month", month)
+  setField("p4_year", year)
+  setField("p4_submitted_by_name", submitName)
+  setField("p4_submitted_by_position", submitPosition)
 
+  // Flatten so fields look like printed text
+  pdfForm.flatten()
+
+  // Metadata
   const issuedDate = form.date_issued ? new Date(form.date_issued) : new Date()
   const yyyy = issuedDate.getFullYear()
   const mm = String(issuedDate.getMonth() + 1).padStart(2, "0")
   const dd = String(issuedDate.getDate()).padStart(2, "0")
-  const title = `${name} - CAV - ${yyyy}-${mm}-${dd}`
-
-  pdfDoc.setTitle(title)
+  pdfDoc.setTitle(`${name} - CAV - ${yyyy}-${mm}-${dd}`)
   pdfDoc.setAuthor("Rizal High School")
   pdfDoc.setSubject("Certification, Authentication and Verification")
   pdfDoc.setCreator("CAV-RHS")
 
+  // Download
   const pdfBytes: Uint8Array = await pdfDoc.save()
   const blob = new Blob([pdfBytes as any], { type: "application/pdf" })
   const fileName = buildPdfFileName(form.full_legal_name ?? "Student", new Date())
