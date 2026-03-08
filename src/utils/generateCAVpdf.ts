@@ -60,9 +60,10 @@ export async function generateCavPDF(form: any) {
     }
   }
 
-  // ── Fetch template from Supabase Storage ──
-  const { data: urlData } = supabase.storage.from("templates").getPublicUrl("CAV_Format_JHS.pdf")
-  const existingPdfBytes = await fetch(urlData.publicUrl).then(res => res.arrayBuffer())
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from("templates").createSignedUrl("jhs/CAV_Format_JHS.pdf", 60)
+  if (signedError || !signedData?.signedUrl) throw new Error("Could not load template")
+  const existingPdfBytes = await fetch(signedData.signedUrl).then(res => res.arrayBuffer())
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pdfForm = pdfDoc.getForm()

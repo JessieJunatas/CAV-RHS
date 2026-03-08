@@ -30,9 +30,16 @@ export async function generatePreviewUrl(
   preparedOptions: { id: string; full_name: string; position: string }[],
   submittedOptions: { id: string; full_name: string; position: string }[]
 ): Promise<string> {
-  // ── Fetch template from Supabase Storage ──
-  const { data: urlData } = supabase.storage.from("templates").getPublicUrl("CAV_Format_JHS.pdf")
-  const existingPdfBytes = await fetch(urlData.publicUrl).then(res => res.arrayBuffer())
+  // ── Fetch template via signed URL to bypass CDN cache ──
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from("templates")
+    .createSignedUrl("jhs/CAV_Format_JHS.pdf", 60)
+
+  if (signedError || !signedData?.signedUrl) {
+    throw new Error("Could not generate signed URL for template: " + signedError?.message)
+  }
+
+  const existingPdfBytes = await fetch(signedData.signedUrl).then(res => res.arrayBuffer())
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pdfForm = pdfDoc.getForm()

@@ -69,8 +69,7 @@ function Layout() {
           <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor /></ProtectedRoute>} />
-          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
+          <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor supabase={supabase} bucketName="templates" /></ProtectedRoute>} />          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
           <Route path="/docs" element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
