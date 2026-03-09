@@ -6,7 +6,7 @@ function HeroSection() {
     const [commitMessage, setCommitMessage] = useState("");
 
     useEffect(() => {
-    fetch("https://api.github.com/repos/JessieJunatas/CAV-RHS/commits?sha=dev&per_page=1")
+    fetch("https://api.github.com/repos/JessieJunatas/CAV-RHS/commits?sha=main&per_page=1")
         .then((res) => res.json())
         .then((data) => {
         setCommitMessage(data[0].commit.message);
