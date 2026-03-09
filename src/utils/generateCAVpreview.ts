@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/lib/supabase"
-import { PDFDocument } from "pdf-lib"
+import { PDFDocument, StandardFonts } from "pdf-lib"
 
 function formatDate(date: string) {
   if (!date) return ""
@@ -30,7 +30,6 @@ export async function generatePreviewUrl(
   preparedOptions: { id: string; full_name: string; position: string }[],
   submittedOptions: { id: string; full_name: string; position: string }[]
 ): Promise<string> {
-  // ── Fetch template via signed URL to bypass CDN cache ──
   const { data: signedData, error: signedError } = await supabase.storage
     .from("templates")
     .createSignedUrl("jhs/CAV_Format_JHS.pdf", 60)
@@ -43,6 +42,7 @@ export async function generatePreviewUrl(
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pdfForm = pdfDoc.getForm()
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
   const prep = preparedOptions.find(p => p.id === form.prepared_by)
   const sub = submittedOptions.find(s => s.id === form.submitted_by)
@@ -55,32 +55,31 @@ export async function generatePreviewUrl(
   const name = (form.full_legal_name ?? "").toUpperCase()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
-  function setField(fieldName: string, value: string) {
+  function setField(fieldName: string, value: string, bold = false) {
     try {
-      pdfForm.getTextField(fieldName).setText(value ?? "")
+      const field = pdfForm.getTextField(fieldName)
+      field.setText(value ?? "")
+      if (bold) field.updateAppearances(boldFont)
     } catch {
       console.warn(`Field "${fieldName}" not found in PDF`)
     }
   }
 
-  // Page 1
   setField("control_no", form.control_no ?? "")
-  setField("student_name", name)
+  setField("student_name", name, true)
   setField("date_of_application", formatDate(form.date_of_application))
   setField("date_of_transmittal", formatDate(form.date_of_transmission))
-  setField("prepared_by_name", prepareName)
-  setField("prepared_by_position", preparePosition)
-  setField("submitted_by_name", submitName)
-  setField("submitted_by_position", submitPosition)
+  setField("prepared_by_name", prepareName, true)
+  setField("prepared_by_position", preparePosition, true)
+  setField("submitted_by_name", submitName, true)
+  setField("submitted_by_position", submitPosition, true)
 
-  // Page 2
   setField("p2_date", formatDate(today))
-  setField("p2_student_name", name)
-  setField("p2_submitted_by_name", submitName)
-  setField("p2_submitted_by_position", submitPosition)
+  setField("p2_student_name", name, true)
+  setField("p2_submitted_by_name", submitName, true)
+  setField("p2_submitted_by_position", submitPosition, true)
 
-  // Page 3
-  setField("p3_student_name", name)
+  setField("p3_student_name", name, true)
 
   const enrolledGrade = (form.enrolled_grade ?? "").trim()
   const enrolledSY = (form.enrolled_sy ?? "").trim()
@@ -107,19 +106,18 @@ export async function generatePreviewUrl(
   setField("p3_day", ordinal)
   setField("p3_month", month)
   setField("p3_year", year)
-  setField("p3_request_name", name)
-  setField("p3_submitted_by_name", submitName)
-  setField("p3_submitted_by_position", submitPosition)
+  setField("p3_request_name", name, true)
+  setField("p3_submitted_by_name", submitName, true)
+  setField("p3_submitted_by_position", submitPosition, true)
 
-  // Page 4
-  setField("p4_student_name", name)
+  setField("p4_student_name", name, true)
   setField("p4_sy_completed", form.school_year_completed ?? "")
   setField("p4_sy_graduated", formatDate(form.school_year_graduated))
   setField("p4_day", ordinal)
   setField("p4_month", month)
   setField("p4_year", year)
-  setField("p4_submitted_by_name", submitName)
-  setField("p4_submitted_by_position", submitPosition)
+  setField("p4_submitted_by_name", submitName, true)
+  setField("p4_submitted_by_position", submitPosition, true)
 
   pdfForm.flatten()
 

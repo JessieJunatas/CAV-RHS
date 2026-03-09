@@ -17,7 +17,6 @@ import {
 import { SupabaseClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
 interface FieldDef { name: string; label: string }
 interface FieldGroup {
   label: string; shortLabel: string;
@@ -62,10 +61,9 @@ const applyPrefix = (type: TemplateType, name: string): string => {
   return `${TYPE_PREFIX[type]}${base}.pdf`;
 };
 
-// ── JHS Field definitions ──────────────────────────────────────────────────────
 const JHS_FIELD_GROUPS: FieldGroup[] = [
   {
-    label: "Transmittal", shortLabel: "P1",
+    label: "CAV Form 5-2", shortLabel: "P1",
     color: "bg-sky-500", dot: "bg-sky-500",
     pill: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
     borderColor: "border-sky-400",
@@ -84,7 +82,7 @@ const JHS_FIELD_GROUPS: FieldGroup[] = [
     ],
   },
   {
-    label: "Indorsement", shortLabel: "P2",
+    label: "CAV Form 5-1", shortLabel: "P2",
     color: "bg-violet-500", dot: "bg-violet-500",
     pill: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
     borderColor: "border-violet-400",
@@ -145,10 +143,9 @@ const JHS_FIELD_GROUPS: FieldGroup[] = [
   },
 ];
 
-// ── K-12 Field definitions ─────────────────────────────────────────────────────
 const K12_FIELD_GROUPS: FieldGroup[] = [
   {
-    label: "Transmittal", shortLabel: "P1",
+    label: "CAV-FORM 5-2", shortLabel: "P1",
     color: "bg-sky-500", dot: "bg-sky-500",
     pill: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
     borderColor: "border-sky-400",
@@ -168,7 +165,7 @@ const K12_FIELD_GROUPS: FieldGroup[] = [
     ],
   },
   {
-    label: "Indorsement", shortLabel: "P2",
+    label: "CAV FORM 5-1", shortLabel: "P2",
     color: "bg-violet-500", dot: "bg-violet-500",
     pill: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
     borderColor: "border-violet-400",
@@ -232,7 +229,6 @@ const K12_FIELD_GROUPS: FieldGroup[] = [
   },
 ];
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
@@ -259,7 +255,6 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// ── Small UI atoms ─────────────────────────────────────────────────────────────
 function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <p className={cn("px-1 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 select-none", className)}>
@@ -320,7 +315,6 @@ function InspectorRow({ label, children }: { label: string; children: React.Reac
   );
 }
 
-// ── Template type toggle ─────────────────────────────────────────────────────────
 function TemplateTypeToggle({ value, onChange }: { value: TemplateType; onChange: (v: TemplateType) => void }) {
   return (
     <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border">
@@ -345,7 +339,6 @@ function TemplateTypeToggle({ value, onChange }: { value: TemplateType; onChange
   );
 }
 
-// ── Type badge chip ────────────────────────────────────────────────────────────
 function TypeBadge({ type }: { type: TemplateType }) {
   return (
     <span className={cn(
@@ -359,7 +352,6 @@ function TypeBadge({ type }: { type: TemplateType }) {
   );
 }
 
-// ── Skeleton loader ────────────────────────────────────────────────────────────
 function TemplateSkeleton() {
   return (
     <div className="px-1 space-y-1">
@@ -374,7 +366,6 @@ function TemplateSkeleton() {
   );
 }
 
-// ── Toast notification ─────────────────────────────────────────────────────────
 function Toast({ status, onDismiss }: { status: SaveStatus; onDismiss: () => void }) {
   return (
     <div
@@ -400,7 +391,6 @@ function Toast({ status, onDismiss }: { status: SaveStatus; onDismiss: () => voi
   );
 }
 
-// ── Dialogs ────────────────────────────────────────────────────────────────────
 function DialogShell({ children, onBackdropClick }: { children: React.ReactNode; onBackdropClick?: () => void }) {
   return (
     <div
@@ -543,7 +533,6 @@ function ShortcutsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ── Preview modal ──────────────────────────────────────────────────────────────
 function PreviewModal({ pages, placedFields, fieldGroups, onClose }: {
   pages: PageData[]; placedFields: PlacedField[]; fieldGroups: FieldGroup[]; onClose: () => void
 }) {
@@ -639,7 +628,6 @@ function PreviewModal({ pages, placedFields, fieldGroups, onClose }: {
   );
 }
 
-// ── Field Inspector Popover ────────────────────────────────────────────────────
 function FieldInspectorPopover({ instance, anchorRect, sidebarOpen, onUpdate, onRemove, onClose }: {
   instance: PlacedField;
   anchorRect: DOMRect | null;
@@ -650,8 +638,6 @@ function FieldInspectorPopover({ instance, anchorRect, sidebarOpen, onUpdate, on
 }) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // When anchored to a sidebar row: appear just to the right of the sidebar
-  // When no anchor (canvas click): appear at a fixed top-right-ish position
   const SIDEBAR_RIGHT = sidebarOpen ? 24 + 256 + 8 + 8 : 48 + 16;
   const POPOVER_WIDTH = 208; // w-52
 
@@ -848,7 +834,6 @@ export default function PDFFieldEditor({ supabase, bucketName = "templates" }: P
   const totalFields = ALL_FIELDS.length;
   const progress = Math.round((totalPlaced / totalFields) * 100);
 
-  // Type mismatch detection
   const showTypeMismatch = !typeMismatchDismissed &&
     activeTemplateType !== null &&
     activeTemplateType !== templateType;

@@ -33,8 +33,8 @@ import { logAudit } from "@/utils/audit-log"
 export function DataCardSkeleton() {
   return (
     <Card className="w-full max-w-5xl overflow-hidden border border-border/60">
-      <div className="flex min-h-[140px]">
-        <Skeleton className="w-[160px] shrink-0 rounded-none rounded-l-xl" />
+      <div className="flex min-h-35">
+        <Skeleton className="w-40 shrink-0 rounded-none rounded-l-xl" />
 
         <div className="flex flex-1 min-w-0 flex-col gap-3 p-5">
           <div className="flex items-start justify-between gap-3">
@@ -122,7 +122,7 @@ export default function DataCard({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <Card className="group w-full max-w-5xl overflow-hidden border border-border/60 transition-all duration-200 hover:border-border hover:shadow-md hover:shadow-black/[0.04] dark:hover:shadow-black/20">
+      <Card className="group w-full max-w-5xl overflow-hidden border border-border/60 transition-all duration-200 hover:border-border hover:shadow-md hover:shadow-black/4 dark:hover:shadow-black/20">
         <div className="flex">
 
           <div className="overflow-hidden self-stretch">

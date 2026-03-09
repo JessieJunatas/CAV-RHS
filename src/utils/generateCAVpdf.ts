@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/lib/supabase"
-import { PDFDocument } from "pdf-lib"
+import { PDFDocument, StandardFonts } from "pdf-lib"
 
 function formatDate(date: string) {
   if (!date) return ""
@@ -67,37 +67,37 @@ export async function generateCavPDF(form: any) {
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes)
   const pdfForm = pdfDoc.getForm()
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
   const name = (form.full_legal_name ?? "").toUpperCase()
   const today = new Date().toISOString()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
-  function setField(fieldName: string, value: string) {
+  function setField(fieldName: string, value: string, bold = false) {
     try {
-      pdfForm.getTextField(fieldName).setText(value ?? "")
+      const field = pdfForm.getTextField(fieldName)
+      field.setText(value ?? "")
+      if (bold) field.updateAppearances(boldFont)
     } catch {
       console.warn(`Field "${fieldName}" not found in PDF`)
     }
   }
 
-  // Page 1 — Transmittal
   setField("control_no", form.control_no ?? "")
-  setField("student_name", name)
+  setField("student_name", name, true)
   setField("date_of_application", formatDate(form.date_of_application))
   setField("date_of_transmittal", formatDate(form.date_of_transmission))
-  setField("prepared_by_name", prepareName)
-  setField("prepared_by_position", preparePosition)
-  setField("submitted_by_name", submitName)
-  setField("submitted_by_position", submitPosition)
+  setField("prepared_by_name", prepareName, true)
+  setField("prepared_by_position", preparePosition, true)
+  setField("submitted_by_name", submitName, true)
+  setField("submitted_by_position", submitPosition, true)
 
-  // Page 2 — 1st Indorsement
   setField("p2_date", formatDate(today))
-  setField("p2_student_name", name)
-  setField("p2_submitted_by_name", submitName)
-  setField("p2_submitted_by_position", submitPosition)
+  setField("p2_student_name", name, true)
+  setField("p2_submitted_by_name", submitName, true)
+  setField("p2_submitted_by_position", submitPosition, true)
 
-  // Page 3 — Certification of Enrolment/Completion/Graduation
-  setField("p3_student_name", name)
+  setField("p3_student_name", name, true)
 
   const enrolledGrade = (form.enrolled_grade ?? "").trim()
   const enrolledSY = (form.enrolled_sy ?? "").trim()
@@ -124,24 +124,21 @@ export async function generateCavPDF(form: any) {
   setField("p3_day", ordinal)
   setField("p3_month", month)
   setField("p3_year", year)
-  setField("p3_request_name", name)
-  setField("p3_submitted_by_name", submitName)
-  setField("p3_submitted_by_position", submitPosition)
+  setField("p3_request_name", name, true)
+  setField("p3_submitted_by_name", submitName, true)
+  setField("p3_submitted_by_position", submitPosition, true)
 
-  // Page 4 — Certification of English as Medium of Instruction
-  setField("p4_student_name", name)
+  setField("p4_student_name", name, true)
   setField("p4_sy_completed", form.school_year_completed ?? "")
   setField("p4_sy_graduated", formatDate(form.school_year_graduated))
   setField("p4_day", ordinal)
   setField("p4_month", month)
   setField("p4_year", year)
-  setField("p4_submitted_by_name", submitName)
-  setField("p4_submitted_by_position", submitPosition)
+  setField("p4_submitted_by_name", submitName, true)
+  setField("p4_submitted_by_position", submitPosition, true)
 
-  // Flatten so fields look like printed text
   pdfForm.flatten()
 
-  // Metadata
   const issuedDate = form.date_issued ? new Date(form.date_issued) : new Date()
   const yyyy = issuedDate.getFullYear()
   const mm = String(issuedDate.getMonth() + 1).padStart(2, "0")
@@ -151,7 +148,6 @@ export async function generateCavPDF(form: any) {
   pdfDoc.setSubject("Certification, Authentication and Verification")
   pdfDoc.setCreator("CAV-RHS")
 
-  // Download
   const pdfBytes: Uint8Array = await pdfDoc.save()
   const blob = new Blob([pdfBytes as any], { type: "application/pdf" })
   const fileName = buildPdfFileName(form.full_legal_name ?? "Student", new Date())
