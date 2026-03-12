@@ -28,6 +28,7 @@ import {
   Inbox, Trash2, CheckCircle2, TriangleAlert,
 } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
+import { useCollapse } from "@/context/collapse-provider" 
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
@@ -40,6 +41,7 @@ type CavForm = {
 }
 
 function ArchivePage() {
+  const { px } = useCollapse() 
   const [records, setRecords] = useState<CavForm[]>([])
   const [loading, setLoading] = useState(true)
   const [restoringId, setRestoringId] = useState<number | null>(null)
@@ -230,7 +232,7 @@ function ArchivePage() {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="bg-background text-foreground">
-        <div className="mx-auto max-w-4xl px-6 py-10">
+        <div className={`${px} py-10 transition-all duration-300`}>
 
           <div className="mb-8 flex items-center justify-between">
             <div className="flex items-center gap-3">

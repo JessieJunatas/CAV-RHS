@@ -5,11 +5,13 @@ import {
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { useCollapse } from "@/context/collapse-provider" 
 
 export default function About() {
+  const { px } = useCollapse() 
   return (
     <div className="bg-background text-foreground">
-      <div className="mx-auto max-w-4xl px-6 py-14 space-y-16">
+      <div className={`space-y-16 ${px} py-14 transition-all duration-300`}>
 
         <div className="space-y-4">
           <Badge variant="outline" className="text-[11px] uppercase tracking-widest font-semibold text-muted-foreground">

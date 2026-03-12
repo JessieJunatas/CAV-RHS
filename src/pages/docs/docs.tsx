@@ -8,6 +8,7 @@ import {
   AlertTriangle, Info, Lightbulb, Terminal,
   Zap,
 } from "lucide-react"
+import { useCollapse } from "@/context/collapse-provider"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -961,7 +962,7 @@ await logAudit({
         <div className="my-4 flex items-center gap-2 text-sm overflow-x-auto pb-1">
           {["editing", "previewing", "submitted"].map((state, i, arr) => (
             <div key={state} className="flex items-center gap-2 shrink-0">
-              <div className="rounded-lg border border-border bg-card px-4 py-2 text-center min-w-[90px]">
+              <div className="rounded-lg border border-border bg-card px-4 py-2 text-center min-w-22.5">
                 <p className="font-mono text-xs text-muted-foreground">{state}</p>
               </div>
               {i < arr.length - 1 && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
@@ -969,9 +970,9 @@ await logAudit({
           ))}
         </div>
         <div className="my-4 space-y-2 text-sm">
-          <P className="!mb-1"><strong className="text-foreground">editing</strong> — Default state. No PDF exists, no data is saved to the database.</P>
-          <P className="!mb-1"><strong className="text-foreground">previewing</strong> — Form validated, live PDF rendered in the preview panel. Still fully reversible.</P>
-          <P className="!mb-0"><strong className="text-foreground">submitted</strong> — Record written to Supabase, audit log created, PDF available for download.</P>
+          <P className="mb-1!"><strong className="text-foreground">editing</strong> — Default state. No PDF exists, no data is saved to the database.</P>
+          <P className="mb-1!"><strong className="text-foreground">previewing</strong> — Form validated, live PDF rendered in the preview panel. Still fully reversible.</P>
+          <P className="mb-0!"><strong className="text-foreground">submitted</strong> — Record written to Supabase, audit log created, PDF available for download.</P>
         </div>
 
         <SectionHeading id="arch-utils" level={3}>Utility files</SectionHeading>
@@ -1126,6 +1127,7 @@ await logAudit({
 
 export default function DocsPage() {
   const navigate = useNavigate()
+  const { px } = useCollapse() 
   const [activeSection, setActiveSection] = useState("introduction")
   const [activeToc, setActiveToc] = useState("")
   const toc = TOC_FOR_PAGE[activeSection] ?? []
@@ -1152,7 +1154,7 @@ export default function DocsPage() {
   }, [activeSection])
 
   return (
-    <div className="flex px-90 bg-background text-foreground items-start">
+    <div className={`flex ${px} bg-background text-foreground items-start transition-all duration-300`}>
 
       <aside className="hidden md:flex flex-col w-60 shrink-0 self-start sticky top-16 py-6 pr-10">
         <div className="flex items-center gap-2 px-3 mb-6">
@@ -1193,7 +1195,7 @@ export default function DocsPage() {
       </aside>
 
       <main className="flex-1 flex flex-col items-center">
-        <div className="w-full max-w-[800px] px-10 py-12">
+        <div className="w-full max-w-200 px-10 py-12">
           <PageContent pageId={activeSection} onNavigate={setActiveSection} />
           <div className="mt-16 pt-6 border-t border-border flex items-center justify-between">
             <button

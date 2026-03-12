@@ -1,3 +1,4 @@
+// src/pages/home/homeData.tsx
 import { useEffect, useState } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
@@ -5,6 +6,7 @@ import HeroSection from "./hero"
 import DataCard, { DataCardSkeleton } from "./data"
 import { X } from "lucide-react"
 import { getFormTypeLabel } from "@/utils/formTypeUtils"
+import { useCollapse } from "@/context/collapse-provider" 
 
 interface CavForm {
   id: number
@@ -17,6 +19,7 @@ interface CavForm {
 }
 
 const Home: React.FC = () => {
+  const { px } = useCollapse() 
   const [forms, setForms] = useState<CavForm[]>([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
@@ -56,7 +59,8 @@ const Home: React.FC = () => {
     <div>
       <HeroSection />
 
-      <div className="px-6 py-4 flex flex-col gap-5">
+      {/* px comes from collapse context — narrows when collapsed */}
+      <div className={`${px} py-4 flex flex-col gap-5 transition-all duration-300`}>
 
         {searchQuery && (
           <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-4 py-2.5">
@@ -109,7 +113,6 @@ const Home: React.FC = () => {
             <DataCard
               key={form.id}
               id={form.id}
-              // ← now uses the shared util
               title={getFormTypeLabel(form.form_type)}
               value={form.full_legal_name}
               description={`Control No: ${form.control_no}`}

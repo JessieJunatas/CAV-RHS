@@ -40,6 +40,7 @@ import {
   Users, CheckCircle2, TriangleAlert, CheckCircle, ChevronDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useCollapse } from "@/context/collapse-provider" 
 
 // ─── Role options ─────────────────────────────────────────────────────────────
 const ROLE_OPTIONS = [
@@ -83,6 +84,7 @@ function StatCard({ label, value, icon, className }: {
 type Toast = { id: number; title: string; message: string; type: "success" | "error" | "info" }
 
 export default function SignatoriesPage() {
+  const { px } = useCollapse() 
   const [signatories, setSignatories] = useState<Signatory[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -238,8 +240,8 @@ export default function SignatoriesPage() {
   const selectedRoleLabel = ROLE_OPTIONS.find((r) => r.value === roleType)?.label ?? "Select Role Type"
 
   return (
-    <div className="bg-background text-foreground p-6 lg:p-8">
-      <div className="max-w-3xl mx-auto space-y-7">
+    <div className={`bg-background text-foreground ${px} py-6 transition-all duration-300`}>
+      <div className="space-y-7">
 
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
@@ -332,7 +334,7 @@ export default function SignatoriesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
-                      className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+                      className="min-w-(--radix-dropdown-menu-trigger-width)"
                       align="start"
                     >
                       {ROLE_OPTIONS.map((r) => (
@@ -356,7 +358,7 @@ export default function SignatoriesPage() {
               </div>
 
               <div className="flex justify-end">
-                <Button type="submit" disabled={submitting} size="sm" className="gap-1.5 min-w-[130px]">
+                <Button type="submit" disabled={submitting} size="sm" className="gap-1.5 min-w-32.5">
                   {submitting ? (
                     <><div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />Saving…</>
                   ) : editingId ? (
@@ -401,7 +403,7 @@ export default function SignatoriesPage() {
             </CardContent>
           ) : (
             <>
-              <ScrollArea className="h-[250px]">
+              <ScrollArea className="h-62.5">
                 <Table>
                   <TableHeader className="sticky top-0 z-10 bg-background">
                     <TableRow className="bg-muted/20">

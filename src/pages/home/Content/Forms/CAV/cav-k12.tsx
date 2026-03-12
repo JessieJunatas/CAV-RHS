@@ -30,7 +30,7 @@ import {
   DropdownMenu, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
+import { useCollapse } from "@/context/collapse-provider" 
 
 type CavK12FormData = {
   full_legal_name: string
@@ -182,6 +182,7 @@ function StepTracker({ step }: { step: Step }) {
 
 export default function CAVK12() {
   const navigate = useNavigate()
+  const { px } = useCollapse() 
 
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
@@ -309,7 +310,7 @@ export default function CAVK12() {
 
   return (
     <div className="bg-background min-h-screen">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className={`${px} py-8 transition-all duration-300`}>
 
         <div className="flex items-center justify-between mb-7">
           <div className="flex items-center gap-3">
@@ -475,7 +476,7 @@ export default function CAVK12() {
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="min-w-[var(--radix-dropdown-menu-trigger-width)]" align="start">
+                    <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
                       {preparedOptions.map(p => (
                         <DropdownMenuItem key={p.id} onSelect={() => setFormData(prev => ({ ...prev, prepared_by: p.id }))}>
                           <div className="py-0.5">
@@ -501,7 +502,7 @@ export default function CAVK12() {
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="min-w-[var(--radix-dropdown-menu-trigger-width)]" align="start">
+                    <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
                       {submittedOptions.map(s => (
                         <DropdownMenuItem key={s.id} onSelect={() => setFormData(prev => ({ ...prev, submitted_by: s.id }))}>
                           <div className="py-0.5">
@@ -583,11 +584,11 @@ export default function CAVK12() {
                     </div>
                     <div className="space-y-1.5">
                       <p className="text-sm font-semibold text-muted-foreground">No preview yet</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed max-w-[180px]">
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-45">
                         Complete the form and click <span className="font-medium text-foreground">Preview PDF</span> to review before submitting
                       </p>
                     </div>
-                    <div className="w-full max-w-[140px] space-y-2">
+                    <div className="w-full max-w-35 space-y-2">
                       <div className="flex justify-between text-[10px] text-muted-foreground">
                         <span>{filledRequired} of {requiredKeys.length}</span>
                         <span>{progress}%</span>
@@ -645,7 +646,7 @@ export default function CAVK12() {
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
-                <span className="text-xs font-medium truncate max-w-[200px] text-right ml-4">
+                <span className="text-xs font-medium truncate max-w-50 text-right ml-4">
                   {row.value || <span className="text-muted-foreground italic">—</span>}
                 </span>
               </div>

@@ -18,7 +18,7 @@ import {
   Hash, ClipboardList, Pencil, Send, CircleDot,
   FileText, Download,
 } from "lucide-react"
-
+import { useCollapse } from "@/context/collapse-provider" 
 
 function SectionBlock({ title, icon, children }: {
   title: string; icon: React.ReactNode; children: React.ReactNode
@@ -97,6 +97,7 @@ function SmallDirtyInput({ name, value, originalValue, onChange, placeholder, cl
 export default function EditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { px } = useCollapse() 
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [generatingPreview, setGeneratingPreview] = useState(false)
@@ -197,7 +198,7 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className={`${px} py-8 transition-all duration-300`}>
 
         <div className="flex items-center justify-between mb-7">
           <div className="flex items-center gap-3">
@@ -239,7 +240,7 @@ export default function EditPage() {
                 <CheckCircle2 className="h-3 w-3" />Saved!
               </div>
             )}
-            <Button size="sm" className="h-8 gap-1.5 min-w-[120px]" onClick={handleUpdate} disabled={saving || saved || !isDirty}>
+            <Button size="sm" className="h-8 gap-1.5 min-w-30" onClick={handleUpdate} disabled={saving || saved || !isDirty}>
               {saved
                 ? <><CheckCircle2 className="h-3.5 w-3.5" />Saved!</>
                 : saving
@@ -419,7 +420,7 @@ function LoadingSkeleton() {
               </div>
             ))}
           </div>
-          <Skeleton className="h-[640px] rounded-2xl" />
+          <Skeleton className="h-160 rounded-2xl" />
         </div>
       </div>
     </div>

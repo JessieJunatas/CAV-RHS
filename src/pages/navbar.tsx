@@ -60,6 +60,8 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/animate-ui/components/buttons/button";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { CollapseToggle } from "@/components/collapse-toggle";
+import { useCollapse } from "@/context/collapse-provider"
 
 interface MenuItem {
   title: string;
@@ -150,6 +152,7 @@ const Navbar = ({
     { title: "Login", url: "/login" },
   ],
 }: NavbarProps) => {
+  const { px } = useCollapse()
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -211,7 +214,7 @@ const Navbar = ({
           }
         `}
       >
-        <nav className="hidden lg:flex items-center justify-between px-8 h-16 max-w-7xl mx-auto w-full">
+        <nav className={`hidden lg:flex items-center justify-between ${px} h-16 w-full transition-all duration-300`}>
           <Link to={logo.url} className="flex items-center gap-2.5 group shrink-0">
             <div className="relative flex items-center justify-center w-8 h-8 rounded-lg">
               <img
@@ -237,6 +240,7 @@ const Navbar = ({
             <Link to="/settings" className="flex items-center">
                       <Settings className="size-4 mr-2" />
             </Link>
+            <CollapseToggle/>
             <ModeToggle variant="polygon" />
             <div className="w-px h-5 bg-border mx-1" />
 
@@ -281,7 +285,7 @@ const Navbar = ({
           </div>
         </nav>
 
-        <div className="flex lg:hidden items-center justify-between px-4 h-14">
+        <div className={`flex lg:hidden items-center justify-between ${px} h-14 transition-all duration-300`}>
           <Link to={logo.url} className="flex items-center gap-2">
             <img src={logo.src} className="w-7 h-7 object-contain" alt={logo.alt} />
             <span className="text-base font-semibold tracking-tight">
@@ -290,6 +294,7 @@ const Navbar = ({
           </Link>
 
           <div className="flex items-center gap-1.5">
+            <CollapseToggle/>
             <ModeToggle variant="polygon" />
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>

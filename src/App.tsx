@@ -1,3 +1,7 @@
+// src/App.tsx  — only the changed shell shown; internals unchanged
+// Wrap <AppearanceProvider> with <CollapseProvider> so every route can
+// read `collapsed` / `px` from the context.
+
 import './App.css'
 import { useEffect } from 'react'
 import Home from './pages/home/homeData'
@@ -17,6 +21,7 @@ import SignatoriesPage from './pages/Signatories/signatory'
 import DocsPage from './pages/docs/docs'
 import Settings from './pages/settings/Settings'
 import { AppearanceProvider, resetAppearanceToDefaults } from './components/appearance-provider'
+import { CollapseProvider } from '@/context/collapse-provider'   // ← NEW
 import { supabase } from '@/lib/supabase'
 import PDFFieldEditor from './components/pdf-editor'
 
@@ -48,8 +53,6 @@ function resetThemeToDefaults() {
   root.classList.add(DEFAULT_THEME)
 }
 
-// Routes where the footer and normal scroll layout should not apply.
-// These are fullscreen tool pages that manage their own layout.
 const FULLSCREEN_TOOL_ROUTES = ['/settings/pdf-template']
 
 function Layout() {
@@ -69,7 +72,8 @@ function Layout() {
           <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor supabase={supabase} bucketName="templates" /></ProtectedRoute>} />          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
+          <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor supabase={supabase} bucketName="templates" /></ProtectedRoute>} />
+          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
           <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
           <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
           <Route path="/docs" element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
@@ -77,15 +81,11 @@ function Layout() {
         </Routes>
       </main>
 
-      {/* Footer hidden on auth pages AND fullscreen tool pages */}
       {!isAuthPage && !isFullscreenTool && (
         <footer className="sticky bottom-0 z-10 py-2 px-4 border-t border-border/40 bg-background/80 backdrop-blur-sm">
           <div className="flex items-center py-3 text-xs">
             <div className="flex-1 text-left font-mono text-muted-foreground/50">
-              <span>
-                v{__APP_VERSION__} • built{" "}
-                {new Date(__BUILD_DATE__).toLocaleDateString()}
-              </span>
+              <span>v{__APP_VERSION__} • built {new Date(__BUILD_DATE__).toLocaleDateString()}</span>
             </div>
             <div className="flex items-center gap-1.5 justify-center font-medium text-muted-foreground/60">
               <span>Made with</span>
@@ -107,9 +107,7 @@ function App() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        applyUserTheme(session.user.id)
-      }
+      if (event === 'SIGNED_IN' && session?.user) applyUserTheme(session.user.id)
       if (event === 'SIGNED_OUT') {
         resetThemeToDefaults()
         resetAppearanceToDefaults()
@@ -122,8 +120,12 @@ function App() {
   return (
     <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
       <AppearanceProvider>
+        {/* CollapseProvider must be inside BrowserRouter so routes can consume it,
+            but it doesn't need router itself — wrap Layout inside BrowserRouter below */}
         <BrowserRouter>
-          <Layout />
+          <CollapseProvider>   {/* ← NEW */}
+            <Layout />
+          </CollapseProvider>  {/* ← NEW */}
         </BrowserRouter>
       </AppearanceProvider>
     </ThemeProvider>

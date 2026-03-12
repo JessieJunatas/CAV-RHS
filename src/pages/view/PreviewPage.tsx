@@ -14,8 +14,10 @@ import {
   Hash, GraduationCap, ClipboardList,
   Send, User, AlertCircle,
 } from "lucide-react"
+import { useCollapse } from "@/context/collapse-provider" 
 
 function ViewPage() {
+  const { px } = useCollapse() 
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -66,10 +68,9 @@ function ViewPage() {
     if (form.form_type === 2) generateCavK12PDF(form)
     else generateCavPDF(form)
   }
-
   return (
     <div className="bg-background">
-      <div className="mx-auto max-w-4xl px-6 py-8">
+      <div className={`${px} py-8 transition-all duration-300`}>
 
         <div className="mb-8 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate("/")}
