@@ -177,7 +177,7 @@ export default function CAV() {
   const [showBackDialog, setBackDialog]     = useState(false)
 
   const isDirty = step !== "submitted" && Object.values(formData).some(v => 
-    typeof v === "boolean" ? v : !!v?.trim()
+    typeof v === "boolean" ? v : !!(v as string)?.trim()
   )
   // ── Guard: browser tab close / refresh ──
   useEffect(() => {
@@ -227,7 +227,7 @@ export default function CAV() {
   }
 
   const requiredKeys   = (Object.keys(EMPTY) as (keyof CavFormData)[]).filter(k => !OPTIONAL.includes(k))
-  const filledRequired = requiredKeys.filter(k => !!formData[k]?.trim()).length
+  const filledRequired = requiredKeys.filter(k => !!(formData[k] as string)?.trim()).length
   const progress       = Math.round((filledRequired / requiredKeys.length) * 100)
 
   const enrolledActive  = !!(formData.enrolled_grade || formData.enrolled_sy)
@@ -235,7 +235,10 @@ export default function CAV() {
   const graduatedActive = !!formData.status_graduated_sy
 
   const hasErr   = (key: keyof CavFormData) => !!fieldErrors[key]
-  const isFilled = (key: keyof CavFormData) => !!formData[key]?.trim()
+  const isFilled = (key: keyof CavFormData) => {
+    const v = formData[key]
+    return typeof v === "boolean" ? v : !!v?.trim()
+  }
   const inputCls = (key: keyof CavFormData) =>
     `h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-50 ${
       hasErr(key)     ? "border-destructive bg-destructive/5 focus-visible:ring-destructive"
@@ -248,7 +251,7 @@ export default function CAV() {
   const validate = (): boolean => {
     const errors: Partial<Record<keyof CavFormData, string>> = {}
     for (const key of requiredKeys) {
-      if (!formData[key]?.trim()) errors[key] = `${FIELD_LABELS[key]} is required`
+      if (!(formData[key] as string)?.trim()) errors[key] = `${FIELD_LABELS[key]} is required`
     }
     setFieldErrors(errors)
     const count = Object.keys(errors).length
