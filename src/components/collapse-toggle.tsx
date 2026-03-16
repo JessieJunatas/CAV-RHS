@@ -1,7 +1,7 @@
 // src/components/collapse-toggle.tsx
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useCollapse } from "@/context/collapse-provider"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   Tooltip,
   TooltipContent,

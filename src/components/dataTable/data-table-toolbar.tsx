@@ -1,7 +1,7 @@
 "use client"
 
 import type { Table } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Input } from "@/components/ui/input"
 import { DataTableFacetedFilter } from "./data-table-faceted-filter"
 import { DataTableViewOptions } from "./data-table-view-options"
@@ -37,7 +37,7 @@ export function DataTableToolbar<TData>({
           onChange={(event) =>
             table.setGlobalFilter(event.target.value)
           }
-          className="h-9 w-[200px] lg:w-[300px]"
+          className="h-9 w-50 lg:w-75"
         />
 
         {table.getColumn("action") && (

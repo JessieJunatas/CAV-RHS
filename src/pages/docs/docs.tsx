@@ -204,7 +204,7 @@ function CodeBlock({ code, language = "bash" }: { code: string; language?: strin
             : <><Copy className="h-3 w-3" />Copy</>}
         </button>
       </div>
-      <pre className="p-4 text-sm font-mono text-foreground overflow-x-auto leading-relaxed whitespace-pre"><code>{code}</code></pre>
+      <pre className="p-4 text-sm font-mono text-foreground leading-relaxed whitespace-pre"><code>{code}</code></pre>
     </div>
   )
 }

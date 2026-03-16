@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { format, parseISO, getDaysInMonth, setMonth, setYear } from "date-fns"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 

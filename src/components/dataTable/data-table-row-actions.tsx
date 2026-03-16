@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { Row } from "@tanstack/react-table";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +41,7 @@ export function DataTableRowActions<TData>({
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" className="w-[200px]">
+        <DropdownMenuContent align="end" className="w-50">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
 
           <DropdownMenuItem

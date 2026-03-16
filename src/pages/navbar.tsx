@@ -237,8 +237,10 @@ const Navbar = ({
           
 
           <div className="flex items-center gap-2 shrink-0">
-            <Link to="/settings" className="flex items-center">
-                      <Settings className="size-4 mr-2" />
+            <Link to="/settings">
+              <Button variant="ghost" size="icon" className="size-9 rounded-lg">
+                <Settings className="size-4 text-muted-foreground" />
+              </Button>
             </Link>
             <CollapseToggle/>
             <ModeToggle variant="polygon" />
@@ -417,29 +419,26 @@ const renderMenuItem = (item: MenuItem, pathname: string) => {
         >
           {item.title}
         </NavigationMenuTrigger>
-
         <NavigationMenuContent>
           <ul className="w-72 p-2 space-y-0.5">
-            <NavigationMenuLink asChild>
-              <>
-                {item.items.map((subItem) => (
-                  <li key={subItem.title}>
-                    <Link
-                      to={subItem.url}
-                      className="flex items-start gap-3 rounded-lg p-3 hover:bg-muted"
-                    >
-                      {subItem.icon}
-                      <div>
-                        <p className="text-sm font-medium">{subItem.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {subItem.description}
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </>
-            </NavigationMenuLink>
+            {item.items.map((subItem) => (
+              <li key={subItem.title}>
+                <NavigationMenuLink asChild>
+                  <Link
+                    to={subItem.url}
+                    className="flex items-start gap-3 rounded-lg p-3 hover:bg-muted"
+                  >
+                    {subItem.icon}
+                    <div>
+                      <p className="text-sm font-medium">{subItem.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {subItem.description}
+                      </p>
+                    </div>
+                  </Link>
+                </NavigationMenuLink>
+              </li>
+            ))}
           </ul>
         </NavigationMenuContent>
       </NavigationMenuItem>

@@ -3,7 +3,7 @@ import type { Column } from "@tanstack/react-table"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   Command,
   CommandEmpty,
@@ -82,7 +82,7 @@ export function DataTableFacetedFilter<TData, TValue>({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-50 p-0" align="start">
         <Command>
           <CommandInput placeholder={title} />
           <CommandList>

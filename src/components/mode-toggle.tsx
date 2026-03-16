@@ -32,7 +32,7 @@ export const ModeToggle = ({
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleThemeChange = useCallback(async (newTheme: Theme) => {
+  const handleThemeChange = useCallback((newTheme: Theme) => {
     const styleId = `theme-transition-${Date.now()}`;
     const style = document.createElement('style');
     style.id = styleId;
@@ -124,15 +124,7 @@ export const ModeToggle = ({
       setTimeout(() => document.getElementById(styleId)?.remove(), 3000);
     }
 
-    // Save to Supabase so it persists on next login
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase
-        .from('user_settings')
-        .update({ theme: newTheme })
-        .eq('account_id', user.id)
-    }
-
+    // Apply theme immediately — no await blocking this
     if ('startViewTransition' in document) {
       const doc = document as Document & {
         startViewTransition: (callback: () => void) => { finished: Promise<void> };
@@ -142,7 +134,16 @@ export const ModeToggle = ({
       setTheme(newTheme);
     }
 
-    return false;
+    // Fire-and-forget — runs in background after transition starts
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase
+          .from('user_settings')
+          .update({ theme: newTheme })
+          .eq('account_id', user.id)
+          .then();
+      }
+    });
   }, [setTheme, variant, start, url, theme]);
 
   return (

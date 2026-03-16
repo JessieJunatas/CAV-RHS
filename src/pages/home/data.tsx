@@ -27,7 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Eye, Pencil, Archive, Clock } from "lucide-react"
+import { Pencil, Archive, Clock, FileText } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 
 export function DataCardSkeleton() {
@@ -52,7 +52,6 @@ export function DataCardSkeleton() {
             <Skeleton className="h-3.5 w-36 rounded" />
             <div className="flex gap-2">
               <Skeleton className="h-8 w-20 rounded-lg" />
-              <Skeleton className="h-8 w-20 rounded-lg" />
               <Skeleton className="h-8 w-24 rounded-lg" />
             </div>
           </div>
@@ -62,15 +61,13 @@ export function DataCardSkeleton() {
   )
 }
 
-
 interface DataCardProps {
   id: number
   title: string
   value: string
   description: string
-  status?: "active" | "pending" | "draft"
   modifiedAt?: string
-  onDelete?: (id: number) => void
+  onArchived?: (id: number) => void
 }
 
 export default function DataCard({
@@ -79,10 +76,11 @@ export default function DataCard({
   value,
   description,
   modifiedAt,
-  onDelete,
+  onArchived,
 }: DataCardProps) {
   const navigate = useNavigate()
   const [archiving, setArchiving] = useState(false)
+  const [imgError, setImgError] = useState(false)
 
   const handleArchive = async () => {
     setArchiving(true)
@@ -108,16 +106,19 @@ export default function DataCard({
         oldData: { is_archived: false },
         newData: { is_archived: true },
       })
-      } 
-      catch (err: any) {
-        console.error("Audit log failed:", err)
-      }
+    } catch (err: any) {
+      console.error("Audit log failed:", err)
+    }
 
-    onDelete?.(id)
-    window.location.reload()
+    onArchived?.(id)
   }
+
   const displayDate = modifiedAt
-    ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(modifiedAt))
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(modifiedAt))
     : "Recently"
 
   return (
@@ -125,12 +126,20 @@ export default function DataCard({
       <Card className="group w-full max-w-5xl overflow-hidden border border-border/60 transition-all duration-200 hover:border-border hover:shadow-md hover:shadow-black/4 dark:hover:shadow-black/20">
         <div className="flex">
 
-          <div className="overflow-hidden self-stretch">
-            <img
-              src={`https://avatar.vercel.sh/${encodeURIComponent(title)}`}
-              alt={title}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            />
+          {/* Image / Fallback */}
+          <div className="w-40 shrink-0 self-stretch overflow-hidden">
+            {imgError ? (
+              <div className="flex h-full w-full items-center justify-center bg-muted">
+                <FileText className="size-8 text-muted-foreground/40" />
+              </div>
+            ) : (
+              <img
+                src={`https://avatar.vercel.sh/${encodeURIComponent(title)}`}
+                alt={title}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                onError={() => setImgError(true)}
+              />
+            )}
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 px-5 py-5">
@@ -163,28 +172,15 @@ export default function DataCard({
                     <Button
                       size="sm"
                       className="h-8 px-3 gap-1.5 text-xs font-medium rounded-lg"
-                      onClick={() => navigate(`/view/${id}`)}
-                    >
-                      <Eye className="size-3.5" />
-                      View
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs">View record details</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-3 gap-1.5 text-xs font-medium rounded-lg"
                       onClick={() => navigate(`/edit/${id}`)}
                     >
                       <Pencil className="size-3.5" />
                       Edit
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs">Edit this record</TooltipContent>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Edit this record
+                  </TooltipContent>
                 </Tooltip>
 
                 <AlertDialog>
@@ -194,7 +190,7 @@ export default function DataCard({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 px-3 gap-1.5 text-xs font-medium rounded-lg border-destructive/30 text-destructive hover:text-destructive-foreground hover:border-destructive transition-colors"
+                          className="h-8 px-3 gap-1.5 text-xs font-medium rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive hover:text-white transition-colors"
                           disabled={archiving}
                         >
                           <Archive className="size-3.5" />
@@ -202,12 +198,16 @@ export default function DataCard({
                         </Button>
                       </AlertDialogTrigger>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">Archive this record</TooltipContent>
+                    <TooltipContent side="bottom" className="text-xs">
+                      Archive this record
+                    </TooltipContent>
                   </Tooltip>
 
                   <AlertDialogContent className="max-w-sm">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-base">Archive this record?</AlertDialogTitle>
+                      <AlertDialogTitle className="text-base">
+                        Archive this record?
+                      </AlertDialogTitle>
                       <AlertDialogDescription className="text-sm leading-relaxed">
                         <span className="font-medium text-foreground">"{title}"</span> will be
                         moved to the archive. You can restore it later from the archived records view.
@@ -218,8 +218,9 @@ export default function DataCard({
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction
+                        variant="destructive"
                         onClick={handleArchive}
-                        className="h-8 text-xs rounded-lg bg-destructive text-destructive-foreground"
+                        className="h-8 text-xs rounded-lg"
                       >
                         <Archive className="size-3.5" />
                         Yes, archive it
@@ -232,7 +233,6 @@ export default function DataCard({
           </div>
         </div>
       </Card>
-
     </TooltipProvider>
   )
 }

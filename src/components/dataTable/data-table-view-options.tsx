@@ -2,7 +2,7 @@
 
 import type { Table } from "@tanstack/react-table";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,7 +33,7 @@ export function DataTableViewOptions<TData>({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-[180px]">
+      <DropdownMenuContent align="end" className="w-45">
         <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
 

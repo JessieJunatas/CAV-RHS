@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Upload, Save, ChevronLeft, ChevronRight,
@@ -132,6 +132,7 @@ const JHS_FIELD_GROUPS: FieldGroup[] = [
     activeText: "text-amber-700 dark:text-amber-300",
     fields: [
       { name: "p4_student_name", label: "Student Name" },
+      { name: "p4_is_graduated", label: "Completion Status" },
       { name: "p4_sy_completed", label: "School Year Completed" },
       { name: "p4_sy_graduated", label: "School Year Graduated" },
       { name: "p4_day", label: "Day (ordinal)" },
@@ -218,6 +219,7 @@ const K12_FIELD_GROUPS: FieldGroup[] = [
     fields: [
       { name: "p4_student_name", label: "Student Name" },
       { name: "p4_lrn", label: "LRN" },
+      { name: "p4_is_graduated", label: "Completion Status" },
       { name: "p4_sy_completed", label: "School Year Completed" },
       { name: "p4_sy_graduated", label: "School Year Graduated" },
       { name: "p4_day", label: "Day (ordinal)" },

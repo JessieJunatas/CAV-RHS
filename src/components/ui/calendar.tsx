@@ -11,7 +11,7 @@ import {
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/animate-ui/components/buttons/button"
 
 function Calendar({
   className,
@@ -31,7 +31,7 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        "bg-background group/calendar p-3 [--cell-size:--spacing(8)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
@@ -146,16 +146,11 @@ function Calendar({
               <ChevronLeftIcon className={cn("size-4", className)} {...props} />
             )
           }
-
           if (orientation === "right") {
             return (
-              <ChevronRightIcon
-                className={cn("size-4", className)}
-                {...props}
-              />
+              <ChevronRightIcon className={cn("size-4", className)} {...props} />
             )
           }
-
           return (
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
@@ -190,6 +185,13 @@ function CalendarDayButton({
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
 
+  // react-day-picker spreads native DOM event handlers (onAnimationStart,
+  // onDragStart, etc.) whose types are incompatible with Framer Motion's
+  // equivalents on animate-ui's Button. Casting through unknown here is
+  // intentional — the handlers are identical at runtime, only their TS
+  // signatures differ between the two libraries.
+  const motionSafeProps = props as unknown as React.ComponentProps<typeof Button>
+
   return (
     <Button
       ref={ref}
@@ -210,7 +212,7 @@ function CalendarDayButton({
         defaultClassNames.day,
         className
       )}
-      {...props}
+      {...motionSafeProps}
     />
   )
 }

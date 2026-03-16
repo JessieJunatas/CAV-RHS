@@ -61,7 +61,11 @@ function Layout() {
   const isFullscreenTool = FULLSCREEN_TOOL_ROUTES.includes(location.pathname)
 
   return (
-    <div className={isFullscreenTool ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
+    <div className={
+      isFullscreenTool 
+        ? "flex flex-col h-screen overflow-hidden" 
+        : "flex flex-col min-h-screen w-full"
+    }>
       {!isAuthPage && <Navbar />}
 
       <main className={isFullscreenTool ? "flex-1 overflow-hidden" : "flex-1"}>

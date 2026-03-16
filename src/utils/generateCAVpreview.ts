@@ -113,6 +113,7 @@ export async function generatePreviewUrl(
   setField("p4_student_name", name, true)
   setField("p4_sy_completed", form.school_year_completed ?? "")
   setField("p4_sy_graduated", formatDate(form.school_year_graduated))
+  setField("p4_is_graduated", form.is_graduated ? "Completed" : "Attended")
   setField("p4_day", ordinal)
   setField("p4_month", month)
   setField("p4_year", year)

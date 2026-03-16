@@ -2,7 +2,7 @@ import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/animate-ui/components/buttons/button"
 import {
   Field,
   FieldDescription,

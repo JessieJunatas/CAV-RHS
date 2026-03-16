@@ -136,6 +136,7 @@ export async function generateCavK12PDF(form: any) {
   setField("p4_lrn", lrn)
   setField("p4_sy_completed", form.school_year_completed ?? "")
   setField("p4_sy_graduated", formatDate(form.school_year_graduated))
+  setField("p4_is_graduated", form.is_graduated ? "Completed" : "Attended")
   setField("p4_day", ordinal)
   setField("p4_month", month)
   setField("p4_year", year)

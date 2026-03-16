@@ -6,7 +6,7 @@ import HeroSection from "./hero"
 import DataCard, { DataCardSkeleton } from "./data"
 import { X } from "lucide-react"
 import { getFormTypeLabel } from "@/utils/formTypeUtils"
-import { useCollapse } from "@/context/collapse-provider" 
+import { useCollapse } from "@/context/collapse-provider"
 
 interface CavForm {
   id: number
@@ -19,7 +19,7 @@ interface CavForm {
 }
 
 const Home: React.FC = () => {
-  const { px } = useCollapse() 
+  const { px } = useCollapse()
   const [forms, setForms] = useState<CavForm[]>([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
@@ -55,11 +55,14 @@ const Home: React.FC = () => {
     fetchForms()
   }, [searchQuery])
 
+  const handleArchived = (id: number) => {
+    setForms((prev) => prev.filter((f) => f.id !== id))
+  }
+
   return (
     <div>
       <HeroSection />
 
-      {/* px comes from collapse context — narrows when collapsed */}
       <div className={`${px} py-4 flex flex-col gap-5 transition-all duration-300`}>
 
         {searchQuery && (
@@ -96,7 +99,9 @@ const Home: React.FC = () => {
           {!loading && forms.length === 0 && (
             <div className="col-span-2 flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
               <p className="text-sm font-medium text-muted-foreground">
-                {searchQuery ? `No records matching "${searchQuery}"` : "No student records found."}
+                {searchQuery
+                  ? `No records matching "${searchQuery}"`
+                  : "No student records found."}
               </p>
               {searchQuery && (
                 <button
@@ -109,16 +114,18 @@ const Home: React.FC = () => {
             </div>
           )}
 
-          {!loading && forms.map((form) => (
-            <DataCard
-              key={form.id}
-              id={form.id}
-              title={getFormTypeLabel(form.form_type)}
-              value={form.full_legal_name}
-              description={`Control No: ${form.control_no}`}
-              modifiedAt={form.updated_at ?? form.created_at}
-            />
-          ))}
+          {!loading &&
+            forms.map((form) => (
+              <DataCard
+                key={form.id}
+                id={form.id}
+                title={getFormTypeLabel(form.form_type)}
+                value={form.full_legal_name}
+                description={`Control No: ${form.control_no}`}
+                modifiedAt={form.updated_at ?? form.created_at}
+                onArchived={handleArchived}
+              />
+            ))}
         </div>
       </div>
     </div>
