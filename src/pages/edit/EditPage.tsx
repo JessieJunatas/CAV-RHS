@@ -344,17 +344,22 @@ export default function EditPage() {
       document.body.appendChild(iframe)
 
       iframe.onload = () => {
+        const cleanup = () => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe)
+          setPrinting(false)
+          window.removeEventListener("afterprint", cleanup)
+        }
+
+        window.addEventListener("afterprint", cleanup)
+        setTimeout(cleanup, 30000)
+
         try {
           iframe.contentWindow?.focus()
           iframe.contentWindow?.print()
         } catch {
-          // Fallback: open in new tab for manual print
           window.open(url, "_blank")
+          cleanup()
         }
-        setTimeout(() => {
-          document.body.removeChild(iframe)
-          setPrinting(false)
-        }, 2000)
       }
     } catch (e: any) {
       pushToast("error", "Print failed", e.message)
