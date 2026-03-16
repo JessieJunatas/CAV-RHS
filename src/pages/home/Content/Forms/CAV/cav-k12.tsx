@@ -16,7 +16,7 @@ import {
 import {
   User, Calendar, GraduationCap, BookOpen, Hash, Send,
   CheckCircle2, FileText, AlertCircle, Download, TriangleAlert,
-  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2,
+  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2, Printer,
 } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 import {
@@ -38,7 +38,7 @@ type CavK12FormData = {
   status_completed_grade: string
   status_completed_sy: string
   status_graduated_sy: string
-  is_graduated: boolean   
+  is_graduated: boolean
   prepared_by?: string
   submitted_by?: string
 }
@@ -51,7 +51,7 @@ const EMPTY: CavK12FormData = {
   school_year_completed: "", date_of_application: "", school_year_graduated: "",
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
-  is_graduated: false, 
+  is_graduated: false,
   prepared_by: "", submitted_by: "",
 }
 
@@ -70,7 +70,7 @@ const FIELD_LABELS: Record<keyof CavK12FormData, string> = {
 const OPTIONAL: (keyof CavK12FormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed", "school_year_graduated",
   "status_completed_grade", "status_completed_sy", "status_graduated_sy",
-  "is_graduated",       
+  "is_graduated",
 ]
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
@@ -173,6 +173,7 @@ export default function CAVK12() {
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
   const [generatingPreview, setGenerating]  = useState(false)
+  const [printing, setPrinting]             = useState(false)
   const [savedForm, setSavedForm]           = useState<(CavK12FormData & { id: string }) | null>(null)
   const [fieldErrors, setFieldErrors]       = useState<Partial<Record<keyof CavK12FormData, string>>>({})
   const [formData, setFormData]             = useState<CavK12FormData>(EMPTY)
@@ -183,9 +184,10 @@ export default function CAVK12() {
   const [showSubmitDialog, setSubmitDialog] = useState(false)
   const [showBackDialog, setBackDialog]     = useState(false)
 
-  const isDirty = step !== "submitted" && Object.values(formData).some(v => 
+  const isDirty = step !== "submitted" && Object.values(formData).some(v =>
     typeof v === "boolean" ? v : !!(v as string)?.trim()
   )
+
   // ── Guard: browser tab close / refresh ──
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -197,7 +199,6 @@ export default function CAVK12() {
 
   // ── Guard: browser back button ──
   useEffect(() => {
-    // Push a state so popstate fires when user presses back
     window.history.pushState(null, "", window.location.href)
     const handlePopState = () => {
       if (isDirty) {
@@ -317,6 +318,39 @@ export default function CAVK12() {
       setSubmitDialog(false)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handlePrint = async () => {
+    if (!formData) return
+    setPrinting(true)
+    try {
+      const url = previewUrl ?? await generateK12PreviewUrl(formData, preparedOptions, submittedOptions)
+
+      const iframe = document.createElement("iframe")
+      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0"
+      iframe.src = url
+      document.body.appendChild(iframe)
+
+      iframe.onload = () => {
+        const cleanup = () => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe)
+          setPrinting(false)
+          window.removeEventListener("afterprint", cleanup)
+        }
+        window.addEventListener("afterprint", cleanup)
+        setTimeout(cleanup, 30000)
+        try {
+          iframe.contentWindow?.focus()
+          iframe.contentWindow?.print()
+        } catch {
+          window.open(url, "_blank")
+          cleanup()
+        }
+      }
+    } catch (e: any) {
+      pushToast("error", "Print failed", e.message)
+      setPrinting(false)
     }
   }
 
@@ -611,11 +645,6 @@ export default function CAVK12() {
               </div>
             </SectionBlock>
 
-            {/* ── Bottom CTA ──
-                editing   → "Preview PDF" button
-                previewing → nothing here; actions are in the amber banner above
-                submitted  → disabled "Form Submitted" pill
-            ── */}
             {step === "editing" && (
               <Button onClick={handlePreview} className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
                 <Eye className="h-4 w-4" /> Preview PDF
@@ -694,12 +723,29 @@ export default function CAVK12() {
                 )}
               </div>
             </div>
-            <Button onClick={() => savedForm && generateCavK12PDF(savedForm)}
-              disabled={step !== "submitted" || generatingPreview}
-              variant="outline" className="w-full h-10 gap-2 rounded-xl text-sm">
-              <Download className="h-4 w-4" />
-              {generatingPreview ? "Generating…" : "Download PDF"}
-            </Button>
+
+            {/* ── Download & Print ── */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => savedForm && generateCavK12PDF(savedForm)}
+                disabled={step !== "submitted" || generatingPreview}
+                variant="outline"
+                className="h-10 gap-2 rounded-xl text-sm"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </Button>
+              <Button
+                onClick={handlePrint}
+                variant="outline"
+                disabled={step !== "submitted" || printing || generatingPreview || !previewUrl}
+                className="h-10 gap-2 rounded-xl text-sm"
+              >
+                {printing
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Printing…</>
+                  : <><Printer className="h-4 w-4" /> Print</>}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -719,14 +765,14 @@ export default function CAVK12() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-1 rounded-xl border border-border bg-muted divide-y divide-border overflow-hidden">
-              {[
-                { label: "Student",     value: formData.full_legal_name },
-                { label: "LRN",         value: formData.lrn },
-                { label: "Control No.", value: formData.control_no },
-                { label: "Date Issued", value: formData.date_issued },
-                { label: "Status",      value: formData.is_graduated ? "Completed" : "Attended" },  // ← ADD
-                { label: "Prepared by", value: prepObj?.full_name },
-              ].map(row => (
+            {[
+              { label: "Student",     value: formData.full_legal_name },
+              { label: "LRN",         value: formData.lrn },
+              { label: "Control No.", value: formData.control_no },
+              { label: "Date Issued", value: formData.date_issued },
+              { label: "Status",      value: formData.is_graduated ? "Completed" : "Attended" },
+              { label: "Prepared by", value: prepObj?.full_name },
+            ].map(row => (
               <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-sm text-muted-foreground shrink-0">{row.label}</span>
                 <span className="text-sm font-medium truncate max-w-[200px] text-right ml-4">

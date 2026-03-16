@@ -16,7 +16,7 @@ import {
 import {
   User, Calendar, GraduationCap, BookOpen, Hash, Send,
   CheckCircle2, FileText, AlertCircle, Download, TriangleAlert,
-  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2,
+  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2, Printer,
 } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 import {
@@ -63,7 +63,7 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
 
 const OPTIONAL: (keyof CavFormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed",
-  "status_completed_grade", "status_completed_sy", "status_graduated_sy","is_graduated",
+  "status_completed_grade", "status_completed_sy", "status_graduated_sy", "is_graduated",
 ]
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
@@ -166,6 +166,7 @@ export default function CAV() {
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
   const [generatingPreview, setGenerating]  = useState(false)
+  const [printing, setPrinting]             = useState(false)
   const [savedForm, setSavedForm]           = useState<(CavFormData & { id: string }) | null>(null)
   const [fieldErrors, setFieldErrors]       = useState<Partial<Record<keyof CavFormData, string>>>({})
   const [formData, setFormData]             = useState<CavFormData>(EMPTY)
@@ -176,9 +177,10 @@ export default function CAV() {
   const [showSubmitDialog, setSubmitDialog] = useState(false)
   const [showBackDialog, setBackDialog]     = useState(false)
 
-  const isDirty = step !== "submitted" && Object.values(formData).some(v => 
+  const isDirty = step !== "submitted" && Object.values(formData).some(v =>
     typeof v === "boolean" ? v : !!(v as string)?.trim()
   )
+
   // ── Guard: browser tab close / refresh ──
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -309,6 +311,39 @@ export default function CAV() {
       setSubmitDialog(false)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handlePrint = async () => {
+    if (!formData) return
+    setPrinting(true)
+    try {
+      const url = previewUrl ?? await generatePreviewUrl(formData, preparedOptions, submittedOptions)
+
+      const iframe = document.createElement("iframe")
+      iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0"
+      iframe.src = url
+      document.body.appendChild(iframe)
+
+      iframe.onload = () => {
+        const cleanup = () => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe)
+          setPrinting(false)
+          window.removeEventListener("afterprint", cleanup)
+        }
+        window.addEventListener("afterprint", cleanup)
+        setTimeout(cleanup, 30000)
+        try {
+          iframe.contentWindow?.focus()
+          iframe.contentWindow?.print()
+        } catch {
+          window.open(url, "_blank")
+          cleanup()
+        }
+      }
+    } catch (e: any) {
+      pushToast("error", "Print failed", e.message)
+      setPrinting(false)
     }
   }
 
@@ -458,6 +493,7 @@ export default function CAV() {
               </div>
             </SectionBlock>
 
+            {/* ── Student Status ── */}
             <SectionBlock title="Student Status" icon={<BookOpen className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
               <p className="text-sm text-muted-foreground mb-3.5">
                 Optional — entering values will auto-fill and check the corresponding box in the PDF.
@@ -675,12 +711,29 @@ export default function CAV() {
                 )}
               </div>
             </div>
-            <Button onClick={() => savedForm && generateCavPDF(savedForm)}
-              disabled={step !== "submitted" || generatingPreview}
-              variant="outline" className="w-full h-10 gap-2 rounded-xl text-sm">
-              <Download className="h-4 w-4" />
-              {generatingPreview ? "Generating…" : "Download PDF"}
-            </Button>
+
+            {/* ── Download & Print ── */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => savedForm && generateCavPDF(savedForm)}
+                disabled={step !== "submitted" || generatingPreview}
+                variant="outline"
+                className="h-10 gap-2 rounded-xl text-sm"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </Button>
+              <Button
+                onClick={handlePrint}
+                variant="outline"
+                disabled={step !== "submitted" || printing || generatingPreview || !previewUrl}
+                className="h-10 gap-2 rounded-xl text-sm"
+              >
+                {printing
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Printing…</>
+                  : <><Printer className="h-4 w-4" /> Print</>}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
