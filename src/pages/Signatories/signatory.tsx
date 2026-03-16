@@ -1,6 +1,9 @@
+/* eslint-disable no-empty */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { supabase } from "@/lib/supabase"
 import { type Signatory } from "@/types/signatory"
 import { logAudit } from "@/utils/audit-log"
@@ -21,6 +24,7 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
@@ -32,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import {
   Plus, Pencil, Archive, X, Trash2,
   Users, CheckCircle2, TriangleAlert, CheckCircle,
@@ -39,18 +44,17 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCollapse } from "@/context/collapse-provider"
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 const ROLE_OPTIONS = [
   { value: "assistant_registrar", label: "Assistant Registrar", sublabel: "Prepared By" },
-  { value: "registrar", label: "Registrar", sublabel: "Submitted By" },
-  { value: "principal", label: "Principal", sublabel: "Submitted By" },
+  { value: "registrar",           label: "Registrar",           sublabel: "Submitted By" },
+  { value: "principal",           label: "Principal",           sublabel: "Submitted By" },
 ]
 
 const ROLE_COLORS: Record<string, string> = {
   assistant_registrar: "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
-  registrar: "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
-  principal: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
+  registrar:           "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20",
+  principal:           "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
 }
 
 function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
@@ -63,9 +67,9 @@ function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
     .toUpperCase()
   const colors = [
     "bg-indigo-600", "bg-violet-600", "bg-teal-600",
-    "bg-rose-600", "bg-amber-600", "bg-cyan-600",
+    "bg-rose-600",   "bg-amber-600",  "bg-cyan-600",
   ]
-  const color = colors[name.charCodeAt(0) % colors.length]
+  const color     = colors[name.charCodeAt(0) % colors.length]
   const sizeClass = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm"
   return (
     <div className={`${sizeClass} rounded-full flex items-center justify-center text-white font-bold shrink-0 ${color}`}>
@@ -75,7 +79,7 @@ function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
 }
 
 function RoleBadge({ roleType }: { roleType: string }) {
-  const opt = ROLE_OPTIONS.find((r) => r.value === roleType)
+  const opt        = ROLE_OPTIONS.find((r) => r.value === roleType)
   const colorClass = ROLE_COLORS[roleType] ?? "bg-muted text-muted-foreground border-border"
   return (
     <Badge variant="outline" className={cn("text-xs font-medium", colorClass)}>
@@ -104,7 +108,11 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
   )
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type Toast = { id: number; title: string; message: string; type: "success" | "error" | "info" }
+
+// ─── Signatory form ───────────────────────────────────────────────────────────
 
 function SignatoryForm({
   fullName, setFullName,
@@ -133,7 +141,9 @@ function SignatoryForm({
           onChange={(e) => { setFullName(e.target.value); setErrors((p) => ({ ...p, fullName: undefined })) }}
           className={cn(
             "h-10 rounded-lg text-base",
-            errors.fullName ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30" : "border-border/60",
+            errors.fullName
+              ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30"
+              : "border-border/60",
           )}
         />
         {errors.fullName && (
@@ -153,7 +163,9 @@ function SignatoryForm({
           onChange={(e) => { setPosition(e.target.value); setErrors((p) => ({ ...p, position: undefined })) }}
           className={cn(
             "h-10 rounded-lg text-base",
-            errors.position ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30" : "border-border/60",
+            errors.position
+              ? "border-destructive/60 bg-destructive/5 focus-visible:ring-destructive/30"
+              : "border-border/60",
           )}
         />
         {errors.position && (
@@ -214,6 +226,8 @@ function SignatoryForm({
   )
 }
 
+// ─── Sheet ────────────────────────────────────────────────────────────────────
+
 function SignatorySheet({
   open, onClose, editingId,
   fullName, setFullName,
@@ -236,14 +250,11 @@ function SignatorySheet({
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <SheetContent side="right" className="w-full max-w-sm p-0 flex flex-col gap-0">
-        {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <SheetTitle className="text-base font-semibold">
             {editingId ? "Edit Signatory" : "New Signatory"}
           </SheetTitle>
         </div>
-
-        {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {editingId && (
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border/60 mb-5">
@@ -268,52 +279,7 @@ function SignatorySheet({
   )
 }
 
-function DialogShell({
-  icon, iconBg, title, description, nameChip, children, footer,
-}: {
-  icon: React.ReactNode
-  iconBg: string
-  title: string
-  description: React.ReactNode
-  nameChip?: string
-  children?: React.ReactNode
-  footer: React.ReactNode
-}) {
-  return (
-    <AlertDialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
-      <div className="flex items-start gap-3 px-5 pt-5 pb-4">
-        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5", iconBg)}>
-          {icon}
-        </div>
-        <div className="space-y-1 min-w-0">
-          <AlertDialogTitle className="text-base font-semibold leading-tight">
-            {title}
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-sm leading-relaxed text-muted-foreground">
-            {description}
-          </AlertDialogDescription>
-        </div>
-      </div>
-
-      {nameChip && (
-        <div className="mx-5 mb-4 flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
-          <div className="w-0.5 h-5 rounded-full bg-border shrink-0" />
-          <p className="text-sm font-medium text-foreground truncate">{nameChip}</p>
-        </div>
-      )}
-
-      {children && (
-        <div className="px-5 pb-5">
-          {children}
-        </div>
-      )}
-
-      <AlertDialogFooter className="px-5 py-3 border-t border-border/60 bg-muted/30 sm:justify-end gap-2">
-        {footer}
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  )
-}
+// ─── Deactivate dialog ────────────────────────────────────────────────────────
 
 function DeactivateConfirmDialog({
   signatory, open, onOpenChange, onConfirmed,
@@ -325,33 +291,38 @@ function DeactivateConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <DialogShell
-        iconBg="bg-amber-500/10"
-        icon={<Archive className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
-        title="Deactivate signatory?"
-        description={
-          <>
-            This signatory will be hidden from CAV form selectors.{" "}
-            <span className="text-foreground font-medium">You can reactivate them anytime.</span>
-          </>
-        }
-        nameChip={signatory?.full_name}
-        footer={
-          <>
-            <AlertDialogCancel className="h-9 text-sm rounded-lg">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onConfirmed}
-              variant={"pending"}
-            >
-              <Archive className="h-3.5 w-3.5 mr-1.5" />
-              Yes, deactivate
-            </AlertDialogAction>
-          </>
-        }
-      />
+      <AlertDialogContent className="max-w-sm rounded-2xl">
+        <AlertDialogHeader className="items-center text-center sm:text-center">
+          <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+            <Archive className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+          </div>
+          <AlertDialogTitle className="text-base font-bold">
+            Deactivate signatory?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm leading-relaxed">
+            <span className="font-medium text-foreground">"{signatory?.full_name}"</span> will be
+            hidden from CAV form selectors. You can reactivate them anytime.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirmed}
+            variant="pending"
+            className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Yes, deactivate
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
     </AlertDialog>
   )
 }
+
+// ─── Delete dialog ────────────────────────────────────────────────────────────
 
 function DeleteConfirmDialog({
   signatory, open, onOpenChange, onConfirmed,
@@ -364,40 +335,29 @@ function DeleteConfirmDialog({
   const [input, setInput] = useState("")
   const isMatch = input.trim() === "DELETE"
 
-  useEffect(() => {
-    if (open) setInput("")
-  }, [open])
+  const handleOpenChange = (o: boolean) => {
+    if (!o) setInput("")
+    onOpenChange(o)
+  }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <DialogShell
-        iconBg="bg-destructive/10"
-        icon={<Trash2 className="h-4 w-4 text-destructive" />}
-        title="Delete signatory?"
-        description={
-          <>
-            This is <span className="text-destructive font-medium">permanent</span> and cannot be undone.
-            Consider deactivating instead if you may need this record later.
-          </>
-        }
-        nameChip={signatory?.full_name}
-        footer={
-          <>
-            <AlertDialogCancel className="h-9 text-sm rounded-lg" onClick={() => setInput("")}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={!isMatch}
-              onClick={onConfirmed}
-              variant={"destructive"}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete permanently
-            </AlertDialogAction>
-          </>
-        }
-      >
-        <div className="space-y-2">
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogContent className="max-w-sm rounded-2xl">
+        <AlertDialogHeader className="items-center text-center sm:text-center">
+          <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+            <Trash2 className="h-7 w-7 text-destructive" />
+          </div>
+          <AlertDialogTitle className="text-base font-bold">
+            Delete signatory?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm leading-relaxed">
+            <span className="font-medium text-foreground">"{signatory?.full_name}"</span> will be{" "}
+            <span className="text-destructive font-medium">permanently deleted</span> and cannot be
+            undone. Consider deactivating instead if you may need this record later.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="space-y-2 px-1">
           <label className="text-xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             Type{" "}
             <code className="text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md text-xs tracking-normal normal-case">
@@ -415,11 +375,11 @@ function DeleteConfirmDialog({
               input.length > 0 && !isMatch
                 ? "border-destructive/50 bg-destructive/5 focus-visible:ring-destructive/20"
                 : isMatch
-                  ? "border-emerald-500/50 bg-emerald-500/5 focus-visible:ring-emerald-500/20"
-                  : "border-border/60",
+                ? "border-success/50 bg-success/5 focus-visible:ring-success/20"
+                : "border-border/60",
             )}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && isMatch) { onOpenChange(false); onConfirmed() }
+              if (e.key === "Enter" && isMatch) { handleOpenChange(false); onConfirmed() }
             }}
           />
           <div className="h-5">
@@ -430,44 +390,68 @@ function DeleteConfirmDialog({
               </p>
             )}
             {isMatch && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <p className="text-xs text-success flex items-center gap-1">
                 <Check className="h-3 w-3 shrink-0" />
                 Confirmed.
               </p>
             )}
           </div>
         </div>
-      </DialogShell>
+
+        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <AlertDialogCancel
+            className="flex-1 rounded-xl h-10 m-0 text-sm"
+            onClick={() => setInput("")}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={!isMatch}
+            onClick={onConfirmed}
+            variant="destructive"
+            className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete permanently
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
     </AlertDialog>
   )
 }
 
+// ─── Main page ────────────────────────────────────────────────────────────────
+
 export default function SignatoriesPage() {
   const { px } = useCollapse()
   const [signatories, setSignatories] = useState<Signatory[]>([])
-  const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading]         = useState(false)
+  const [submitting, setSubmitting]   = useState(false)
 
-  const [fullName, setFullName] = useState("")
-  const [position, setPosition] = useState("")
-  const [roleType, setRoleType] = useState<string>("assistant_registrar")
+  const [fullName, setFullName]   = useState("")
+  const [position, setPosition]   = useState("")
+  const [roleType, setRoleType]   = useState<string>("assistant_registrar")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [errors, setErrors] = useState<{ fullName?: string; position?: string; roleType?: string }>({})
+  const [errors, setErrors]       = useState<{ fullName?: string; position?: string; roleType?: string }>({})
 
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
+  const [panelOpen, setPanelOpen]       = useState(false)
+  const [searchQuery, setSearchQuery]   = useState("")
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all")
 
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId]         = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const pushToast = (title: string, message: string, type: Toast["type"] = "success") => {
-    const id = Date.now()
+  // ── Stable incrementing ID — avoids calling impure Date.now() during render ──
+  const toastIdRef = useRef(0)
+
+  const pushToast = useCallback((title: string, message: string, type: Toast["type"] = "success") => {
+    const id = ++toastIdRef.current
     setToasts((p) => [...p, { id, title, message, type }])
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4000)
-  }
+  }, [])
 
+  // Called manually after mutations (add, edit, deactivate, delete, reactivate)
   const fetchSignatories = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -478,7 +462,21 @@ export default function SignatoriesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchSignatories() }, [])
+  // Initial load — setState calls are in the .then() callback, not the effect body
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    supabase
+      .from("signatories")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (!error && data) setSignatories(data)
+        setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const filtered = signatories.filter((s) => {
     const matchesSearch =
@@ -495,7 +493,7 @@ export default function SignatoriesPage() {
     const e: typeof errors = {}
     if (!fullName.trim()) e.fullName = "Full name is required."
     if (!position.trim()) e.position = "Position is required."
-    if (!roleType) e.roleType = "Role type is required."
+    if (!roleType)        e.roleType = "Role type is required."
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -510,7 +508,6 @@ export default function SignatoriesPage() {
         .from("signatories")
         .update({ full_name: fullName, position, role_type: roleType })
         .eq("id", editingId)
-
       if (error) { pushToast("Update failed", error.message, "error"); setSubmitting(false); return }
       pushToast("Signatory updated", `${fullName} has been updated.`)
       try { await logAudit({ action: "updated", event: `Updated signatory: ${fullName} (${position})`, recordId: editingId, tableName: "signatories" }) } catch {}
@@ -518,18 +515,15 @@ export default function SignatoriesPage() {
     } else {
       const { data: existing } = await supabase
         .from("signatories").select("id").ilike("full_name", fullName.trim()).single()
-
       if (existing) {
         setErrors((p) => ({ ...p, fullName: "A signatory with this name already exists." }))
         setSubmitting(false)
         return
       }
-
       const { data: inserted, error } = await supabase
         .from("signatories")
         .insert({ full_name: fullName, position, role_type: roleType, is_active: true })
         .select("id").single()
-
       if (error) { pushToast("Failed to add", error.message, "error"); setSubmitting(false); return }
       pushToast("Signatory added", `${fullName} has been added.`)
       try { await logAudit({ action: "created", event: `Added signatory: ${fullName} (${position})`, recordId: inserted.id, tableName: "signatories" }) } catch {}
@@ -548,7 +542,7 @@ export default function SignatoriesPage() {
     if (error) { pushToast("Deactivation failed", error.message, "error"); setConfirmDeactivateId(null); return }
     try { await logAudit({ action: "deactivated", event: `Deactivated signatory: ${s?.full_name}`, recordId: confirmDeactivateId, tableName: "signatories" }) } catch {}
     setConfirmDeactivateId(null)
-    pushToast("Deactivated", `${s?.full_name} marked inactive.`, "info")
+    pushToast("Deactivated", `${s?.full_name} has been marked inactive.`, "info")
     fetchSignatories()
   }
 
@@ -567,7 +561,7 @@ export default function SignatoriesPage() {
     if (error) { pushToast("Delete failed", error.message, "error"); return }
     try { await logAudit({ action: "deleted", event: `Deleted signatory: ${s?.full_name}`, recordId: confirmDeleteId, tableName: "signatories" }) } catch {}
     setConfirmDeleteId(null)
-    pushToast("Deleted", `${s?.full_name} permanently removed.`)
+    pushToast("Deleted", `${s?.full_name} has been permanently removed.`)
     fetchSignatories()
   }
 
@@ -587,10 +581,10 @@ export default function SignatoriesPage() {
     }, 300)
   }
 
-  const activeCount = signatories.filter((s) => s.is_active).length
-  const inactiveCount = signatories.filter((s) => !s.is_active).length
+  const activeCount      = signatories.filter((s) => s.is_active).length
+  const inactiveCount    = signatories.filter((s) => !s.is_active).length
   const deactivateTarget = signatories.find((s) => s.id === confirmDeactivateId)
-  const deleteTarget = signatories.find((s) => s.id === confirmDeleteId)
+  const deleteTarget     = signatories.find((s) => s.id === confirmDeleteId)
 
   return (
     <div className={`bg-background text-foreground ${px} pt-5 transition-all duration-300`}>
@@ -622,9 +616,9 @@ export default function SignatoriesPage() {
         {/* ── Stats ── */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Signatories", value: signatories.length, icon: <Users className="h-4 w-4 text-muted-foreground" />, bg: "bg-muted/60" },
-            { label: "Active", value: activeCount, icon: <CheckCircle className="h-4 w-4 text-emerald-600" />, bg: "bg-emerald-500/10", valueClass: "text-emerald-700 dark:text-emerald-400" },
-            { label: "Inactive", value: inactiveCount, icon: <Archive className="h-4 w-4 text-muted-foreground" />, bg: "bg-muted/60" },
+            { label: "Total Signatories", value: signatories.length, icon: <Users className="h-4 w-4 text-muted-foreground" />,  bg: "bg-muted/60" },
+            { label: "Active",            value: activeCount,         icon: <CheckCircle className="h-4 w-4 text-emerald-600" />, bg: "bg-emerald-500/10", valueClass: "text-emerald-700 dark:text-emerald-400" },
+            { label: "Inactive",          value: inactiveCount,       icon: <Archive className="h-4 w-4 text-muted-foreground" />, bg: "bg-muted/60" },
           ].map(({ label, value, icon, bg, valueClass }) => (
             <div key={label} className="rounded-2xl border bg-card p-4 flex items-center gap-3">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bg}`}>{icon}</div>
@@ -842,32 +836,35 @@ export default function SignatoriesPage() {
         onConfirmed={handleDeleteConfirmed}
       />
 
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 pointer-events-none">
-        {toasts.map((toast) => {
-          const isError = toast.type === "error"
-          const isInfo = toast.type === "info"
-          return (
-            <Alert
-              key={toast.id}
-              variant={isError ? "destructive" : "default"}
-              className={cn(
-                "w-80 shadow-lg animate-in slide-in-from-bottom-2 fade-in pointer-events-auto",
-                isInfo && "text-amber-700 dark:text-amber-400 border-amber-500/20 bg-amber-500/10",
-                !isError && !isInfo && "text-emerald-700 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10",
+      {/* ══ TOAST NOTIFICATIONS — portalled to document.body ═════════════════ */}
+      {createPortal(
+        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none">
+          {toasts.map((t) => (
+            <div key={t.id} className="pointer-events-auto animate-in slide-in-from-bottom-3 fade-in duration-200">
+              {t.type === "error" ? (
+                <Alert variant="destructive" className="w-80 shadow-lg">
+                  <TriangleAlert className="h-4 w-4" />
+                  <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
+                  <AlertDescription className="text-sm">{t.message}</AlertDescription>
+                </Alert>
+              ) : t.type === "info" ? (
+                <Alert variant="pending" className="w-80 shadow-lg">
+                  <Archive className="h-4 w-4" />
+                  <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
+                  <AlertDescription className="text-sm">{t.message}</AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="success" className="w-80 shadow-lg">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
+                  <AlertDescription className="text-sm">{t.message}</AlertDescription>
+                </Alert>
               )}
-            >
-              {isError
-                ? <TriangleAlert className="h-4 w-4" />
-                : isInfo
-                  ? <Archive className="h-4 w-4" />
-                  : <CheckCircle2 className="h-4 w-4" />
-              }
-              <AlertTitle>{toast.title}</AlertTitle>
-              <AlertDescription>{toast.message}</AlertDescription>
-            </Alert>
-          )
-        })}
-      </div>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from "@/lib/supabase"
 
 interface CreateFormOptions {
@@ -14,8 +16,6 @@ export async function createForm({
   data,
   formType,
   userId,
-  userEmail,
-  label,
 }: CreateFormOptions) {
 
   const insertPayload: any = {
@@ -34,22 +34,5 @@ export async function createForm({
     .single()
 
   if (error) throw error
-
-  try {
-  await supabase.from("audit_logs").insert([
-    {
-      action: `${label} created for ${data.full_legal_name ?? "record"}`,
-      user_email: userEmail,
-      user_id: userId,
-      table_name: table,
-      record_id: inserted.id.toString(),
-    },
-
-  ])
-  } catch (err: any) {
-    console.error("Audit log failed:", err)
-  }
-  
-
   return inserted
 }

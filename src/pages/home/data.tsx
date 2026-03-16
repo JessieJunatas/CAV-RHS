@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
@@ -30,6 +31,8 @@ import {
 import { Pencil, Archive, Clock, FileText } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
 export function DataCardSkeleton() {
   return (
     <Card className="w-full max-w-5xl overflow-hidden border border-border/60">
@@ -61,14 +64,19 @@ export function DataCardSkeleton() {
   )
 }
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 interface DataCardProps {
   id: number
   title: string
   value: string
   description: string
   modifiedAt?: string
-  onArchived?: (id: number) => void
+  onArchived?: (id: number, name: string) => void
+  onError?: (message: string) => void
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DataCard({
   id,
@@ -77,10 +85,11 @@ export default function DataCard({
   description,
   modifiedAt,
   onArchived,
+  onError,
 }: DataCardProps) {
   const navigate = useNavigate()
   const [archiving, setArchiving] = useState(false)
-  const [imgError, setImgError] = useState(false)
+  const [imgError, setImgError]   = useState(false)
 
   const handleArchive = async () => {
     setArchiving(true)
@@ -94,7 +103,7 @@ export default function DataCard({
     setArchiving(false)
 
     if (error) {
-      alert("Failed to archive: " + error.message)
+      onError?.(error.message)
       return
     }
 
@@ -110,7 +119,8 @@ export default function DataCard({
       console.error("Audit log failed:", err)
     }
 
-    onArchived?.(id)
+    // Pass the student name so the parent can show a meaningful success toast
+    onArchived?.(id, value)
   }
 
   const displayDate = modifiedAt
@@ -189,7 +199,7 @@ export default function DataCard({
                       <AlertDialogTrigger asChild>
                         <Button
                           size="sm"
-                          variant="pending"
+                          variant="archive"
                           disabled={archiving}
                         >
                           <Archive className="size-3.5" />
@@ -202,24 +212,27 @@ export default function DataCard({
                     </TooltipContent>
                   </Tooltip>
 
-                  <AlertDialogContent className="max-w-sm">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="text-base">
+                  <AlertDialogContent className="max-w-sm rounded-2xl">
+                    <AlertDialogHeader className="items-center text-center sm:text-center">
+                      <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-archive/10 border border-archive/20 flex items-center justify-center">
+                        <Archive className="h-7 w-7 text-archive" />
+                      </div>
+                      <AlertDialogTitle className="text-base font-bold">
                         Archive this record?
                       </AlertDialogTitle>
                       <AlertDialogDescription className="text-sm leading-relaxed">
-                        <span className="font-medium text-foreground">"{title}"</span> will be
+                        <span className="font-medium text-foreground">"{value}"</span> will be
                         moved to the archive. You can restore it later from the archived records view.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="gap-2 sm:gap-2">
-                      <AlertDialogCancel className="h-8 text-xs rounded-lg">
+                    <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                      <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        variant="pending"
+                        variant="archive"
                         onClick={handleArchive}
-                        className="h-8 text-xs rounded-lg"
+                        className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
                       >
                         <Archive className="size-3.5" />
                         Yes, archive it
