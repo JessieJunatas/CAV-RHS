@@ -18,7 +18,6 @@ import {
   CheckCircle2, FileText, AlertCircle, Download, TriangleAlert,
   ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2, Printer,
 } from "lucide-react"
-import { logAudit } from "@/utils/audit-log"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -301,9 +300,6 @@ export default function CAVK12() {
         userId: user.id, userEmail: user.email!, label: "CAV K-12 Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
-      try {
-        await logAudit({ action: "created", event: `Created CAV K-12 form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
-      } catch (e) { console.error("Audit log failed:", e) }
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       setSubmitDialog(false)
