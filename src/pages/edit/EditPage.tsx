@@ -441,7 +441,7 @@ export default function EditPage() {
                 <CheckCircle2 className="h-3 w-3" /> Saved
               </div>
             )}
-            <Button size="sm" className="h-8 gap-1.5 min-w-[130px] rounded-lg"
+            <Button size="sm" className="h-8 gap-1.5 min-w-32.5 rounded-lg"
               onClick={handleUpdate} disabled={saving || saved || !isDirty}>
               {saved
                 ? <><CheckCircle2 className="h-3.5 w-3.5" /> Saved!</>
@@ -755,9 +755,9 @@ export default function EditPage() {
                 <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-background border border-border">
                   <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
                     generatingPreview
-                      ? "bg-amber-500 animate-pulse"
+                      ? "bg-pending animate-pulse"
                       : isDirty
-                      ? "bg-amber-500"
+                      ? "bg-pending"
                       : "bg-muted-foreground/40"
                   }`} />
                   <span className="text-xs text-muted-foreground">
@@ -886,7 +886,7 @@ function LoadingSkeleton() {
               </div>
             ))}
           </div>
-          <Skeleton className="h-[840px] rounded-2xl" />
+          <Skeleton className="h-210 rounded-2xl" />
         </div>
       </div>
     </div>

@@ -341,7 +341,7 @@ function DeactivateConfirmDialog({
             <AlertDialogCancel className="h-9 text-sm rounded-lg">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={onConfirmed}
-              className="h-9 text-sm rounded-lg bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white"
+              variant={"pending"}
             >
               <Archive className="h-3.5 w-3.5 mr-1.5" />
               Yes, deactivate
@@ -389,12 +389,7 @@ function DeleteConfirmDialog({
             <AlertDialogAction
               disabled={!isMatch}
               onClick={onConfirmed}
-              className={cn(
-                "h-9 text-sm rounded-lg transition-all",
-                isMatch
-                  ? "bg-destructive hover:bg-destructive/90 text-white"
-                  : "bg-destructive/20 text-destructive/40 cursor-not-allowed pointer-events-none",
-              )}
+              variant={"destructive"}
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
               Delete permanently

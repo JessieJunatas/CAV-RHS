@@ -393,6 +393,7 @@ const Navbar = ({
             <AlertDialogAction
               onClick={handleSignOut}
               disabled={signingOut}
+              variant={"destructive"}
             >
               {signingOut ? "Signing out…" : "Sign out"}
             </AlertDialogAction>

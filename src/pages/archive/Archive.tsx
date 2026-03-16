@@ -273,8 +273,7 @@ function ArchivePage() {
                     <AlertDialogTrigger asChild>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 px-3 gap-1.5 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500"
+                        variant="success"
                         disabled={bulkDeleting}
                       >
                         <RotateCcw className="h-3 w-3" />
@@ -292,6 +291,7 @@ function ArchivePage() {
                         <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => handleBulkRestore(selectedIds)}
+                          variant={"success"}
                         >
                           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                           Restore all
@@ -304,8 +304,7 @@ function ArchivePage() {
                     <AlertDialogTrigger asChild>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="h-7 px-3 gap-1.5 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-white hover:border-destructive"
+                        variant="destructive"
                         disabled={bulkDeleting}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -324,6 +323,7 @@ function ArchivePage() {
                         <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           className="h-8 text-xs rounded-lg"
+                          variant={"destructive"}
                           onClick={() => handleBulkDelete(selectedIds)}
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-1.5" />
@@ -425,8 +425,7 @@ function ArchivePage() {
                           <AlertDialogTrigger asChild>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="h-8 px-3 gap-1.5 text-xs rounded-lg border-emerald-500/30 text-emerald-600 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors"
+                              variant="success"
                               disabled={restoringId === record.id || deletingId === record.id}
                             >
                               <RotateCcw className={`h-3.5 w-3.5 ${restoringId === record.id ? "animate-spin" : ""}`} />
@@ -449,6 +448,7 @@ function ArchivePage() {
                           <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleRestore(record.id)}
+                            variant={"success"}
                             className="h-8 text-xs rounded-lg"
                           >
                             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
@@ -464,8 +464,7 @@ function ArchivePage() {
                           <AlertDialogTrigger asChild>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="h-8 px-3 gap-1.5 text-xs rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-white hover:border-destructive transition-colors"
+                              variant="destructive"
                               disabled={deletingId === record.id}
                             >
                               <Trash2 className={`h-3.5 w-3.5 ${deletingId === record.id ? "animate-pulse" : ""}`} />
@@ -488,6 +487,7 @@ function ArchivePage() {
                           <AlertDialogCancel className="h-8 text-xs rounded-lg">Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDelete(record.id)}
+                            variant={"destructive"}
                             className="h-8 text-xs rounded-lg"
                           >
                             <Trash2 className="h-3.5 w-3.5 mr-1.5" />

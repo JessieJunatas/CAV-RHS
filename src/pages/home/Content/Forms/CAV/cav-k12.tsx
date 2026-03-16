@@ -400,21 +400,20 @@ export default function CAVK12() {
             </div>
           </div>
         )}
-
-        {/* ── Previewing banner — actions live here only, no duplicate below ── */}
+        {/* ── Previewing banner — single source of actions ── */}
         {step === "previewing" && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 overflow-hidden">
+          <div className="mb-5 rounded-xl border border-pending bg-pending/10 overflow-hidden">
             <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-white dark:bg-background border border-amber-200 dark:border-amber-900/50 flex items-center justify-center shrink-0">
-                <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <div className="h-9 w-9 rounded-xl bg-background border border-pending flex items-center justify-center shrink-0">
+                <Eye className="h-4 w-4 text-pending" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-none">Review before submitting</p>
-                <p className="text-sm text-amber-700/80 dark:text-amber-400/70 mt-1">Check the PDF on the right. Go back to edit, or confirm to submit.</p>
+                <p className="text-sm font-semibold text-pending">Review before submitting</p>
+                <p className="text-sm text-pending/70 mt-1">Check the PDF on the right. Go back to edit, or confirm to submit.</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button variant="outline" size="sm" onClick={handleEditFromPreview}
-                  className="h-8 gap-1.5 text-sm rounded-lg border-amber-300 dark:border-amber-800">
+                  className="h-8 gap-1.5 text-sm rounded-lg">
                   <Edit2 className="h-3 w-3" /> Edit
                 </Button>
                 <Button size="sm" onClick={() => setSubmitDialog(true)} className="h-8 gap-1.5 text-sm rounded-lg">
@@ -700,7 +699,7 @@ export default function CAVK12() {
                         Complete the form and click <span className="font-medium text-foreground">Preview PDF</span> to review before submitting
                       </p>
                     </div>
-                    <div className="w-full max-w-[140px] space-y-2">
+                    <div className="w-full max-w-35 space-y-2">
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>{filledRequired} of {requiredKeys.length}</span>
                         <span>{progress}%</span>
@@ -775,7 +774,7 @@ export default function CAVK12() {
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
                 <span className="text-sm text-muted-foreground shrink-0">{row.label}</span>
-                <span className="text-sm font-medium truncate max-w-[200px] text-right ml-4">
+                <span className="text-sm font-medium truncate max-w-50 text-right ml-4">
                   {row.value || <span className="text-muted-foreground italic">—</span>}
                 </span>
               </div>

@@ -189,8 +189,7 @@ export default function DataCard({
                       <AlertDialogTrigger asChild>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-8 px-3 gap-1.5 text-xs font-medium rounded-lg border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive hover:text-white transition-colors"
+                          variant="pending"
                           disabled={archiving}
                         >
                           <Archive className="size-3.5" />
@@ -218,7 +217,7 @@ export default function DataCard({
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        variant="destructive"
+                        variant="pending"
                         onClick={handleArchive}
                         className="h-8 text-xs rounded-lg"
                       >

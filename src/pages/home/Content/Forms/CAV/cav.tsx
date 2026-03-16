@@ -18,7 +18,6 @@ import {
   CheckCircle2, FileText, AlertCircle, Download, TriangleAlert,
   ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2, Printer,
 } from "lucide-react"
-import { logAudit } from "@/utils/audit-log"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -58,7 +57,8 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
   date_of_application: "Date of Application", school_year_graduated: "School Year Graduated",
   control_no: "Control No.", enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
-  status_graduated_sy: "Status Graduated SY", prepared_by: "Prepared By", submitted_by: "Submitted By", is_graduated: "Completion Status",
+  status_graduated_sy: "Status Graduated SY", prepared_by: "Prepared By", submitted_by: "Submitted By",
+  is_graduated: "Completion Status",
 }
 
 const OPTIONAL: (keyof CavFormData)[] = [
@@ -75,9 +75,9 @@ function SectionBlock({ title, icon, children, dimmed }: {
 }) {
   return (
     <div className={`rounded-2xl border border-border bg-card overflow-hidden transition-opacity duration-300 ${dimmed ? "opacity-40 pointer-events-none select-none" : ""}`}>
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/60">
-        <span className="text-muted-foreground/70">{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</span>
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-muted/40">
+        <span className="text-muted-foreground/60">{icon}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -90,18 +90,25 @@ function FieldRow({ label, icon, error, errorMsg, filled, optional, children }: 
 }) {
   return (
     <div className="space-y-1.5">
-      <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${error ? "text-destructive" : "text-muted-foreground"}`}>
-        <span className={error ? "text-destructive" : "text-muted-foreground/60"}>{icon}</span>
+      <label className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider ${error ? "text-destructive" : "text-muted-foreground"}`}>
+        <span className={error ? "text-destructive" : "text-muted-foreground/50"}>{icon}</span>
         {label}
         {optional && !filled && !error && (
-          <span className="ml-auto text-xs font-normal normal-case tracking-normal text-muted-foreground/40">optional</span>
+          <span className="ml-auto text-[10px] font-normal normal-case tracking-normal text-muted-foreground/35 border border-border/60 rounded px-1 py-px">
+            optional
+          </span>
         )}
-        {filled && !error && <CheckCircle2 className="h-3 w-3 text-muted-foreground/50 ml-auto shrink-0" />}
+        {/* Green dot — much more visible than a tiny checkmark */}
+        {filled && !error && (
+          <span className="ml-auto h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+        )}
         {error && <AlertCircle className="h-3 w-3 text-destructive ml-auto shrink-0" />}
       </label>
       {children}
       {error && errorMsg && (
-        <p className="text-xs font-medium text-destructive/90">{errorMsg}</p>
+        <p className="text-xs font-medium text-destructive/90 flex items-center gap-1">
+          <AlertCircle className="h-3 w-3 shrink-0" />{errorMsg}
+        </p>
       )}
     </div>
   )
@@ -112,11 +119,13 @@ function StatusCard({ active, label, children }: {
 }) {
   return (
     <div className={`rounded-xl border p-3.5 transition-all duration-200 ${
-      active ? "border-border bg-muted/80" : "border-border/50 bg-muted/20 hover:border-border hover:bg-muted/40"
+      active
+        ? "border-border bg-muted/60 shadow-sm"
+        : "border-border/40 bg-muted/10 hover:border-border/70 hover:bg-muted/30"
     }`}>
       <div className="flex items-center gap-2.5 mb-3">
         <div className={`h-4 w-4 shrink-0 rounded flex items-center justify-center text-[10px] font-black transition-all duration-200 ${
-          active ? "bg-foreground text-background" : "border border-border/60 bg-background"
+          active ? "bg-foreground text-background" : "border border-border/50 bg-background"
         }`}>{active && "✓"}</div>
         <span className={`text-sm font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
       </div>
@@ -125,34 +134,50 @@ function StatusCard({ active, label, children }: {
   )
 }
 
-function StepTracker({ step }: { step: Step }) {
+// ── Step tracker — clear done/active/pending visual hierarchy ─────────────
+function StepTracker({ step, progress }: { step: Step; progress: number }) {
   const steps: { key: Step; label: string; desc: string }[] = [
     { key: "editing",    label: "Fill Form",  desc: "Enter details"   },
     { key: "previewing", label: "Review PDF", desc: "Check & confirm" },
     { key: "submitted",  label: "Submitted",  desc: "Saved to DB"     },
   ]
   const current = steps.findIndex(s => s.key === step)
+
   return (
-    <div className="flex items-center">
+    <div className="flex items-center gap-1">
       {steps.map((s, i) => {
-        const done = i < current; const active = i === current
+        const done   = i < current
+        const active = i === current
         return (
           <div key={s.key} className="flex items-center">
             <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-300 ${active ? "bg-muted" : ""}`}>
+              {/* done = green, active = foreground+ring, future = ghost */}
               <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
-                done ? "bg-muted-foreground text-background" : active ? "bg-foreground text-background ring-4 ring-border" : "border-2 border-border text-muted-foreground"
+                done
+                  ? "bg-success text-white"
+                  : active
+                  ? "bg-foreground text-background ring-[3px] ring-border"
+                  : "border-2 border-border/50 text-muted-foreground/50"
               }`}>
-                {done ? <CheckCircle2 className="h-3 w-3" /> : <span className="text-[10px] font-bold">{i + 1}</span>}
+                {done
+                  ? <CheckCircle2 className="h-3 w-3" />
+                  : <span className="text-[10px] font-bold">{i + 1}</span>
+                }
               </div>
               <div className="hidden sm:block">
-                <p className={`text-xs font-semibold leading-none ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
-                <p className="text-xs mt-0.5 text-muted-foreground">{s.desc}</p>
+                <p className={`text-xs font-semibold leading-none ${
+                  done ? "text-success" : active ? "text-foreground" : "text-muted-foreground/50"
+                }`}>{s.label}</p>
+                <p className="text-[11px] mt-0.5 text-muted-foreground/50">{s.desc}</p>
               </div>
             </div>
-            {i < steps.length - 1 && <div className={`h-px w-5 mx-1 ${done ? "bg-border" : "bg-border/30"}`} />}
+            {i < steps.length - 1 && (
+              <div className={`h-px w-5 mx-0.5 transition-colors duration-500 ${done ? "bg-success/40" : "bg-border/30"}`} />
+            )}
           </div>
         )
       })}
+
     </div>
   )
 }
@@ -181,7 +206,6 @@ export default function CAV() {
     typeof v === "boolean" ? v : !!(v as string)?.trim()
   )
 
-  // ── Guard: browser tab close / refresh ──
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (isDirty) { e.preventDefault(); e.returnValue = "" }
@@ -190,7 +214,6 @@ export default function CAV() {
     return () => window.removeEventListener("beforeunload", handler)
   }, [isDirty])
 
-  // ── Guard: browser back button ──
   useEffect(() => {
     window.history.pushState(null, "", window.location.href)
     const handlePopState = () => {
@@ -243,9 +266,11 @@ export default function CAV() {
   }
   const inputCls = (key: keyof CavFormData) =>
     `h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-50 ${
-      hasErr(key)     ? "border-destructive bg-destructive/5 focus-visible:ring-destructive"
-      : isFilled(key) ? "border-border bg-muted focus-visible:ring-ring"
-      : "border-border bg-background focus-visible:ring-ring"
+      hasErr(key)
+        ? "border-destructive bg-destructive/5 focus-visible:ring-destructive"
+        : isFilled(key)
+        ? "border-border bg-muted focus-visible:ring-ring"
+        : "border-border bg-background focus-visible:ring-ring"
     }`
 
   const isLocked = step !== "editing"
@@ -294,9 +319,6 @@ export default function CAV() {
         userId: user.id, userEmail: user.email!, label: "CAV Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
-      try {
-        await logAudit({ action: "created", event: `Created CAV form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
-      } catch (e) { console.error("Audit log failed:", e) }
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       setSubmitDialog(false)
@@ -319,12 +341,10 @@ export default function CAV() {
     setPrinting(true)
     try {
       const url = previewUrl ?? await generatePreviewUrl(formData, preparedOptions, submittedOptions)
-
       const iframe = document.createElement("iframe")
       iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0"
       iframe.src = url
       document.body.appendChild(iframe)
-
       iframe.onload = () => {
         const cleanup = () => {
           if (document.body.contains(iframe)) document.body.removeChild(iframe)
@@ -362,10 +382,10 @@ export default function CAV() {
       <div className={`${px} py-8 transition-all duration-300`}>
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-7">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={handleBack}
-              className="gap-1 text-muted-foreground hover:text-foreground h-8 px-2">
+              className="text-muted-foreground hover:text-foreground h-8 w-8 p-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-sm shrink-0">
@@ -373,10 +393,10 @@ export default function CAV() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight leading-none">CAV Form</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Junior High School — Certification, Authentication & Verification</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Junior High School — Certification, Authentication & Verification</p>
             </div>
           </div>
-          <StepTracker step={step} />
+          <StepTracker step={step} progress={progress} />
         </div>
 
         {/* ── Error summary banner ── */}
@@ -387,47 +407,48 @@ export default function CAV() {
               <p className="text-sm font-semibold text-destructive">
                 {errorCount} field{errorCount > 1 ? "s" : ""} need attention
               </p>
-              <p className="text-sm text-destructive/70 mt-0.5 line-clamp-2">
+              <p className="text-xs text-destructive/70 mt-0.5 line-clamp-2">
                 {Object.values(fieldErrors).filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Previewing banner — single source of actions ── */}
+        {/* ── Review banner — two-row layout, actions prominent ── */}
         {step === "previewing" && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-white dark:bg-background border border-amber-200 dark:border-amber-900/50 flex items-center justify-center shrink-0">
-                <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-none">Review before submitting</p>
-                <p className="text-sm text-amber-700/80 dark:text-amber-400/70 mt-1">Check the PDF on the right. Go back to edit, or confirm to submit.</p>
-              </div>
+          <div className="mb-5 rounded-xl border border-pending/40 bg-pending/8 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+            <div className="px-5 py-3 border-b border-pending/20 flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-pending animate-pulse shrink-0" />
+              <p className="text-sm font-semibold text-pending">Review before submitting</p>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-5 py-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Check the PDF on the right — if everything looks correct, confirm to save to the database.
+              </p>
               <div className="flex items-center gap-2 shrink-0">
                 <Button variant="outline" size="sm" onClick={handleEditFromPreview}
-                  className="h-8 gap-1.5 text-sm rounded-lg border-amber-300 dark:border-amber-800">
+                  className="h-8 gap-1.5 text-xs rounded-lg">
                   <Edit2 className="h-3 w-3" /> Edit
                 </Button>
-                <Button size="sm" onClick={() => setSubmitDialog(true)} className="h-8 gap-1.5 text-sm rounded-lg">
-                  <ShieldCheck className="h-3 w-3" /> Confirm & Submit
+                <Button size="sm" onClick={() => setSubmitDialog(true)}
+                  variant="success" className="h-8 gap-1.5 text-xs rounded-lg">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Confirm & Submit
                 </Button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Submitted banner ── */}
+        {/* ── Submitted banner — success tinted ── */}
         {step === "submitted" && (
-          <div className="mb-5 rounded-xl border border-border bg-muted/60 overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          <div className="mb-5 rounded-xl border border-success/30 bg-success/5 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-3 px-5 py-4">
+              <div className="h-9 w-9 rounded-xl bg-success/10 border border-success/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-success" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground leading-none">Form submitted successfully</p>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   CAV form for <span className="font-medium text-foreground">{formData.full_legal_name}</span> has been saved to the database.
                 </p>
               </div>
@@ -452,7 +473,7 @@ export default function CAV() {
                 <FieldRow label="Control No." icon={<Hash className="h-3 w-3" />}
                   error={hasErr("control_no")} errorMsg={fieldErrors.control_no} filled={isFilled("control_no")}>
                   <Input name="control_no" value={formData.control_no} onChange={handleChange}
-                    disabled={isLocked} placeholder="e.g. 2024-001" className={inputCls("control_no")} />
+                    disabled={isLocked} placeholder="e.g. RHS-031626" className={inputCls("control_no")} />
                 </FieldRow>
                 <FieldRow label="SY Completed" icon={<GraduationCap className="h-3 w-3" />}
                   filled={isFilled("school_year_completed")} optional>
@@ -462,9 +483,8 @@ export default function CAV() {
                 <FieldRow label="SY Graduated" icon={<GraduationCap className="h-3 w-3" />}
                   error={hasErr("school_year_graduated")} errorMsg={fieldErrors.school_year_graduated}
                   filled={isFilled("school_year_graduated")}>
-                  <DatePicker value={formData.school_year_graduated} onChange={v => handleDate("school_year_graduated", v)}
-                    disabled={isLocked} placeholder="Pick date"
-                    className={hasErr("school_year_graduated") ? "border-destructive bg-destructive/5" : isFilled("school_year_graduated") ? "border-border bg-muted" : ""} />
+                  <Input name="school_year_graduated" value={formData.school_year_graduated} onChange={handleChange}
+                    disabled={isLocked} placeholder="e.g. 2023-2024" className={inputCls("school_year_graduated")} />
                 </FieldRow>
               </div>
             </SectionBlock>
@@ -495,16 +515,14 @@ export default function CAV() {
 
             {/* ── Student Status ── */}
             <SectionBlock title="Student Status" icon={<BookOpen className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
-              <p className="text-sm text-muted-foreground mb-3.5">
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
                 Optional — entering values will auto-fill and check the corresponding box in the PDF.
               </p>
-              <div className="mb-3.5 rounded-xl border border-border p-3.5">
+              <div className="mb-3.5 rounded-xl border border-border bg-muted/20 p-3.5">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
+                  <div>
                     <p className="text-sm font-medium text-foreground">Completion Status</p>
-                    <p className="text-xs text-muted-foreground">
-                      Controls the output text printed on the PDF
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Controls the output text printed on the PDF</p>
                   </div>
                   <button
                     type="button"
@@ -519,22 +537,20 @@ export default function CAV() {
                     }`} />
                   </button>
                 </div>
-                <div className={`mt-2.5 flex items-center gap-2 text-xs font-medium px-2.5 py-1.5 rounded-lg w-fit transition-all ${
-                  formData.is_graduated
-                    ? "bg-foreground/8 text-foreground"
-                    : "bg-muted text-muted-foreground"
+                <div className={`mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md transition-all ${
+                  formData.is_graduated ? "bg-foreground/8 text-foreground" : "bg-muted text-muted-foreground"
                 }`}>
                   <GraduationCap className="h-3 w-3" />
                   {formData.is_graduated ? "Completed" : "Attended"}
                 </div>
               </div>
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <StatusCard active={enrolledActive} label="Enrolled in">
                   <div className="flex items-center gap-2">
                     <Input name="enrolled_grade" value={formData.enrolled_grade} onChange={handleChange}
                       disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
                       className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_grade ? "bg-muted" : "bg-background"}`} />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">during SY</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
                     <Input name="enrolled_sy" value={formData.enrolled_sy} onChange={handleChange}
                       disabled={isLocked} placeholder="2020-2021"
                       className={`h-8 text-sm w-24 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_sy ? "bg-muted" : "bg-background"}`} />
@@ -545,7 +561,7 @@ export default function CAV() {
                     <Input name="status_completed_grade" value={formData.status_completed_grade} onChange={handleChange}
                       disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
                       className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted" : "bg-background"}`} />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">during SY</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
                     <Input name="status_completed_sy" value={formData.status_completed_sy} onChange={handleChange}
                       disabled={isLocked} placeholder="2020-2021"
                       className={`h-8 text-sm w-24 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_sy ? "bg-muted" : "bg-background"}`} />
@@ -553,7 +569,7 @@ export default function CAV() {
                 </StatusCard>
                 <StatusCard active={graduatedActive} label="Satisfactorily graduated from Secondary Course">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">for SY</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">for SY</span>
                     <Input name="status_graduated_sy" value={formData.status_graduated_sy} onChange={handleChange}
                       disabled={isLocked} placeholder="2020-2021"
                       className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_graduated_sy ? "bg-muted" : "bg-background"}`} />
@@ -567,13 +583,18 @@ export default function CAV() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Prepared By */}
                 <div className="space-y-1.5">
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${hasErr("prepared_by") ? "text-destructive" : "text-muted-foreground"}`}>
-                    <Pen className="h-3 w-3 opacity-60" /> Prepared By
+                  <label className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider ${hasErr("prepared_by") ? "text-destructive" : "text-muted-foreground"}`}>
+                    <Pen className="h-3 w-3 opacity-50" /> Prepared By
+                    {isFilled("prepared_by") && !hasErr("prepared_by") && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                    )}
                     {hasErr("prepared_by") && <AlertCircle className="h-3 w-3 text-destructive ml-auto" />}
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${hasErr("prepared_by") ? "border-destructive bg-destructive/5" : prepObj ? "border-border bg-muted" : ""}`}>
+                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                        hasErr("prepared_by") ? "border-destructive bg-destructive/5" : prepObj ? "border-border bg-muted" : ""
+                      }`}>
                         <span className={`truncate text-left text-sm ${!prepObj ? "text-muted-foreground" : ""}`}>
                           {prepObj ? prepObj.full_name : "Select signatory"}
                         </span>
@@ -588,7 +609,7 @@ export default function CAV() {
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{p.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{p.position}</p>
+                            <p className="text-xs text-muted-foreground">{p.position}</p>
                           </div>
                         </DropdownMenuItem>
                       ))}
@@ -600,13 +621,18 @@ export default function CAV() {
 
                 {/* Submitted By */}
                 <div className="space-y-1.5">
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${hasErr("submitted_by") ? "text-destructive" : "text-muted-foreground"}`}>
-                    <Pen className="h-3 w-3 opacity-60" /> Submitted By
+                  <label className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider ${hasErr("submitted_by") ? "text-destructive" : "text-muted-foreground"}`}>
+                    <Pen className="h-3 w-3 opacity-50" /> Submitted By
+                    {isFilled("submitted_by") && !hasErr("submitted_by") && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                    )}
                     {hasErr("submitted_by") && <AlertCircle className="h-3 w-3 text-destructive ml-auto" />}
                   </label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${hasErr("submitted_by") ? "border-destructive bg-destructive/5" : subObj ? "border-border bg-muted" : ""}`}>
+                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                        hasErr("submitted_by") ? "border-destructive bg-destructive/5" : subObj ? "border-border bg-muted" : ""
+                      }`}>
                         <span className={`truncate text-left text-sm ${!subObj ? "text-muted-foreground" : ""}`}>
                           {subObj ? subObj.full_name : "Select signatory"}
                         </span>
@@ -621,7 +647,7 @@ export default function CAV() {
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{s.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{s.position}</p>
+                            <p className="text-xs text-muted-foreground">{s.position}</p>
                           </div>
                         </DropdownMenuItem>
                       ))}
@@ -633,41 +659,51 @@ export default function CAV() {
               </div>
             </SectionBlock>
 
+            {/* ── Bottom CTA ── */}
             {step === "editing" && (
-              <Button onClick={handlePreview} className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
-                <Eye className="h-4 w-4" /> Preview PDF
+              <Button onClick={handlePreview}
+                className="w-full h-11 text-sm font-semibold gap-2 rounded-xl shadow-sm">
+                <Eye className="h-4 w-4" />
+                Preview PDF
                 {progress < 100 && (
-                  <span className="ml-auto text-xs opacity-55 font-normal tabular-nums">
+                  <span className="ml-auto text-xs opacity-50 font-normal tabular-nums">
                     {filledRequired}/{requiredKeys.length} fields
                   </span>
                 )}
               </Button>
             )}
             {step === "submitted" && (
-              <Button disabled variant="outline" className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" /> Form Submitted
+              <Button disabled variant="outline"
+                className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
+                <CheckCircle2 className="h-4 w-4 text-success" />
+                Form Submitted
               </Button>
             )}
           </div>
 
           {/* ── PDF Preview Panel ── */}
-          <div className="sticky top-6 space-y-3">
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/60">
+          <div className="sticky top-6 space-y-2.5">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">
                 <div className="flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">PDF Preview</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">PDF Preview</span>
                 </div>
+                {/* Status pill — uses theme tokens, no hardcoded amber */}
                 <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-background border border-border">
                   <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                    step === "submitted" ? "bg-foreground" : step === "previewing" ? "bg-amber-500 animate-pulse" : "bg-muted-foreground/30"
+                    step === "submitted"
+                      ? "bg-success"
+                      : step === "previewing"
+                      ? "bg-pending animate-pulse"
+                      : "bg-muted-foreground/30"
                   }`} />
                   <span className="text-xs text-muted-foreground">
                     {step === "submitted" ? "Saved" : step === "previewing" ? "Review mode" : "Awaiting preview"}
                   </span>
                 </div>
               </div>
-              <div className="relative bg-muted/30" style={{ height: "780px" }}>
+              <div className="relative bg-muted/20" style={{ height: "780px" }}>
                 {step === "editing" && !generatingPreview && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center px-10">
                     <div className="relative">
@@ -684,17 +720,25 @@ export default function CAV() {
                     </div>
                     <div className="space-y-1.5">
                       <p className="text-sm font-semibold text-muted-foreground">No preview yet</p>
-                      <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[200px]">
-                        Complete the form and click <span className="font-medium text-foreground">Preview PDF</span> to review before submitting
+                      <p className="text-xs text-muted-foreground/60 leading-relaxed max-w-[180px]">
+                        Fill in the form and click{" "}
+                        <span className="font-medium text-foreground">Preview PDF</span>{" "}
+                        to review before submitting
                       </p>
                     </div>
-                    <div className="w-full max-w-[140px] space-y-2">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{filledRequired} of {requiredKeys.length}</span>
-                        <span>{progress}%</span>
+                    {/* Progress turns green at 100% */}
+                    <div className="w-full max-w-[140px] space-y-1.5">
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>{filledRequired} of {requiredKeys.length} required</span>
+                        <span className={progress === 100 ? "text-success font-medium" : ""}>{progress}%</span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-border overflow-hidden">
-                        <div className="h-full rounded-full bg-foreground/50 transition-all duration-500" style={{ width: `${progress}%` }} />
+                      <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            progress === 100 ? "bg-success" : "bg-foreground/40"
+                          }`}
+                          style={{ width: `${progress}%` }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -706,29 +750,27 @@ export default function CAV() {
                   </div>
                 )}
                 {previewUrl && !generatingPreview && (
-                  <iframe src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                    className="absolute inset-0 h-full w-full border-0" title="CAV PDF Preview" />
+                  <iframe
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                    className="absolute inset-0 h-full w-full border-0"
+                    title="CAV PDF Preview"
+                  />
                 )}
               </div>
             </div>
 
-            {/* ── Download & Print ── */}
             <div className="grid grid-cols-2 gap-2">
               <Button
                 onClick={() => savedForm && generateCavPDF(savedForm)}
                 disabled={step !== "submitted" || generatingPreview}
-                variant="outline"
-                className="h-10 gap-2 rounded-xl text-sm"
-              >
-                <Download className="h-4 w-4" />
-                Download
+                variant="outline" className="h-10 gap-2 rounded-xl text-sm">
+                <Download className="h-4 w-4" /> Download
               </Button>
               <Button
                 onClick={handlePrint}
                 variant="outline"
                 disabled={step !== "submitted" || printing || generatingPreview || !previewUrl}
-                className="h-10 gap-2 rounded-xl text-sm"
-              >
+                className="h-10 gap-2 rounded-xl text-sm">
                 {printing
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Printing…</>
                   : <><Printer className="h-4 w-4" /> Print</>}
@@ -742,8 +784,8 @@ export default function CAV() {
       <AlertDialog open={showSubmitDialog} onOpenChange={open => !submitting && setSubmitDialog(open)}>
         <AlertDialogContent className="max-w-md rounded-2xl">
           <AlertDialogHeader className="items-center text-center sm:text-center">
-            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
-              <ShieldCheck className="h-7 w-7 text-foreground" />
+            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center">
+              <ShieldCheck className="h-7 w-7 text-success" />
             </div>
             <AlertDialogTitle className="text-base">Submit this CAV Form?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
@@ -752,7 +794,7 @@ export default function CAV() {
               to the database. Make sure the PDF preview looks correct before proceeding.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="my-1 rounded-xl border border-border bg-muted divide-y divide-border overflow-hidden">
+          <div className="my-1 rounded-xl border border-border bg-muted/60 divide-y divide-border overflow-hidden">
             {[
               { label: "Student",     value: formData.full_legal_name },
               { label: "Control No.", value: formData.control_no },
@@ -761,7 +803,7 @@ export default function CAV() {
               { label: "Status",      value: formData.is_graduated ? "Completed" : "Attended" },
             ].map(row => (
               <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm text-muted-foreground shrink-0">{row.label}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
                 <span className="text-sm font-medium truncate max-w-[200px] text-right ml-4">
                   {row.value || <span className="text-muted-foreground italic">—</span>}
                 </span>
@@ -769,8 +811,10 @@ export default function CAV() {
             ))}
           </div>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel disabled={submitting} className="flex-1 rounded-xl h-10 m-0 text-sm">Go Back & Check</AlertDialogCancel>
-            <AlertDialogAction variant="default"
+            <AlertDialogCancel disabled={submitting} className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Go Back & Check
+            </AlertDialogCancel>
+            <AlertDialogAction variant="success"
               onClick={e => { e.preventDefault(); handleConfirmSubmit() }}
               disabled={submitting} className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm">
               {submitting
@@ -785,7 +829,7 @@ export default function CAV() {
       <AlertDialog open={showBackDialog} onOpenChange={setBackDialog}>
         <AlertDialogContent className="max-w-sm rounded-2xl">
           <AlertDialogHeader className="items-center text-center sm:text-center">
-            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
               <TriangleAlert className="h-7 w-7 text-destructive" />
             </div>
             <AlertDialogTitle className="text-base">Discard this form?</AlertDialogTitle>
@@ -814,7 +858,7 @@ export default function CAV() {
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>
               </Alert>
             ) : (
-              <Alert className="w-80 shadow-lg border-border bg-muted text-foreground [&>svg]:text-foreground">
+              <Alert className="w-80 shadow-lg border-success/30 bg-success/8 text-foreground [&>svg]:text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertTitle className="text-sm">{t.title}</AlertTitle>
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>
