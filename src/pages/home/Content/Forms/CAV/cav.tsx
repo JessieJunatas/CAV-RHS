@@ -637,8 +637,6 @@ export default function CAV() {
         userId: user.id, userEmail: user.email!, label: "CAV Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
-<<<<<<< HEAD
-=======
       try {
         await logAudit({
           action: "created",
@@ -646,7 +644,6 @@ export default function CAV() {
           recordId: created.id, newData: formData,
         })
       } catch (e) { console.error("Audit log failed:", e) }
->>>>>>> dev
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       setSubmitDialog(false)
