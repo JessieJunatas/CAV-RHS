@@ -5,7 +5,6 @@
 import { useEffect, useState, useRef } from "react"
 import { createPortal } from "react-dom"
 import { supabase } from "@/lib/supabase"
-import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/animate-ui/components/buttons/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -29,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
-  Archive, Eye, RotateCcw, Clock, Hash,
+  Archive, RotateCcw, Clock, Hash,
   Inbox, Trash2, CheckCircle2, TriangleAlert,
 } from "lucide-react"
 import { logAudit } from "@/utils/audit-log"
@@ -54,9 +53,7 @@ function ArchivePage() {
   const [selected, setSelected]     = useState<Set<number>>(new Set())
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [toasts, setToasts]         = useState<Toast[]>([])
-  const navigate = useNavigate()
 
-  // Stable incrementing ID — avoids calling impure Date.now() during render
   const toastIdRef = useRef(0)
 
   const pushToast = (type: Toast["type"], title: string, message: string) => {
