@@ -428,22 +428,6 @@ function ArchivePage() {
 
                   <div className="flex items-center gap-1.5 shrink-0">
 
-                    {/* View */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-3 gap-1.5 text-xs rounded-lg"
-                          onClick={() => navigate(`/view/${record.id}`)}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">View record</TooltipContent>
-                    </Tooltip>
-
                     {/* ── Single restore ── */}
                     <AlertDialog>
                       <Tooltip>

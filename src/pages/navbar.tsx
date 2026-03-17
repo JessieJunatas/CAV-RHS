@@ -62,6 +62,7 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { CollapseToggle } from "@/components/collapse-toggle";
 import { useCollapse } from "@/context/collapse-provider"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MenuItem {
   title: string;
@@ -238,9 +239,18 @@ const Navbar = ({
 
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/settings">
-              <Button variant="ghost" size="icon" className="size-9 rounded-lg">
-                <Settings className="size-4 text-muted-foreground" />
-              </Button>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                     <TooltipContent side="bottom" className="text-xs">
+                      Settings
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
             </Link>
             <CollapseToggle/>
             <ModeToggle variant="polygon" />
