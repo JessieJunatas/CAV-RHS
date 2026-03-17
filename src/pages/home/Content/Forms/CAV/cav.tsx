@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import { useNavigationGuard } from "@/context/navigation-guard-provider"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
 import { generateCavPDF } from "@/utils/generateCAVpdf"
@@ -16,12 +18,16 @@ import {
 import {
   User, Calendar, GraduationCap, BookOpen, Hash, Send,
   CheckCircle2, FileText, AlertCircle, Download, TriangleAlert,
-  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck, Loader2, Printer,
+  ChevronDown, FilePen, Pen, ArrowLeft, Eye, Edit2, ShieldCheck,
+  Loader2, Printer, X, Info,
 } from "lucide-react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useCollapse } from "@/context/collapse-provider"
+import { logAudit } from "@/utils/audit-log"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type CavFormData = {
   full_legal_name: string
@@ -42,6 +48,9 @@ type CavFormData = {
 }
 
 type Step = "editing" | "previewing" | "submitted"
+type Toast = { id: number; type: "error" | "success"; title: string; message: string }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const EMPTY: CavFormData = {
   full_legal_name: "", date_issued: "", date_of_transmission: "",
@@ -57,50 +66,174 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
   date_of_application: "Date of Application", school_year_graduated: "School Year Graduated",
   control_no: "Control No.", enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
-  status_graduated_sy: "Status Graduated SY", prepared_by: "Prepared By", submitted_by: "Submitted By", is_graduated: "Completion Status",
+  status_graduated_sy: "Status Graduated SY", prepared_by: "Prepared By", submitted_by: "Submitted By",
+  is_graduated: "Completion Status",
 }
 
+// Fields that are NOT required for submit (but may still have format rules)
 const OPTIONAL: (keyof CavFormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed",
   "status_completed_grade", "status_completed_sy", "status_graduated_sy", "is_graduated",
 ]
 
-type Toast = { id: number; type: "error" | "success"; title: string; message: string }
+const STEPS: { key: Step; label: string; desc: string }[] = [
+  { key: "editing",    label: "Fill in Details", desc: "Enter student info"   },
+  { key: "previewing", label: "Review PDF",       desc: "Check before saving" },
+  { key: "submitted",  label: "Done",             desc: "Saved to database"   },
+]
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// School-year format: four digits, dash, four digits
+const SY_REGEX = /^\d{4}-\d{4}$/
 
-function SectionBlock({ title, icon, children, dimmed }: {
-  title: string; icon: React.ReactNode; children: React.ReactNode; dimmed?: boolean
+// ─── Validation rules ─────────────────────────────────────────────────────────
+// Each rule receives the raw string value and the full form state.
+// Return a string error message, or null if valid.
+
+type RuleFn = (val: string, data: CavFormData) => string | null
+
+const RULES: Partial<Record<keyof CavFormData, RuleFn>> = {
+  full_legal_name: (v) => {
+    const t = v.trim()
+    if (!t) return "Complete name is required"
+    if (t.length < 2) return "Name must be at least 2 characters"
+    if (t.length > 120) return "Name must be under 120 characters"
+    if (/\d/.test(t)) return "Name should not contain numbers"
+    return null
+  },
+
+  control_no: (v) => {
+    const t = v.trim()
+    if (!t || t === "RHS-") return "Control number is required"
+    if (t.length < 6) return "Control number is too short"
+    if (t.length > 30) return "Control number must be under 30 characters"
+    return null
+  },
+
+  school_year_completed: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    const [start, end] = v.trim().split("-").map(Number)
+    if (end !== start + 1) return "End year must be exactly one year after start"
+    return null
+  },
+
+  school_year_graduated: (v) => {
+    if (!v.trim()) return "School year graduated is required"
+    return null
+  },
+
+  date_of_application: (v) => {
+    if (!v.trim()) return "Date of application is required"
+    return null
+  },
+
+  date_issued: (v, d) => {
+    if (!v.trim()) return "Date issued is required"
+    if (d.date_of_application && v < d.date_of_application)
+      return "Date issued cannot be before date of application"
+    return null
+  },
+
+  date_of_transmission: (v, d) => {
+    if (!v.trim()) return "Date of transmission is required"
+    if (d.date_issued && v < d.date_issued)
+      return "Transmission date cannot be before date issued"
+    return null
+  },
+
+  enrolled_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  status_completed_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  status_graduated_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  prepared_by: (v) => (!v.trim() ? "Prepared By is required" : null),
+  submitted_by: (v) => (!v.trim() ? "Submitted By is required" : null),
+}
+
+// Run a single field's rule against current formData
+function validateField(key: keyof CavFormData, data: CavFormData): string | null {
+  const rule = RULES[key]
+  if (!rule) return null
+  const val = typeof data[key] === "string" ? (data[key] as string) : ""
+  return rule(val, data)
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SectionCard({
+  title, subtitle, icon, children, dimmed,
+}: {
+  title: string; subtitle?: string; icon: React.ReactNode
+  children: React.ReactNode; dimmed?: boolean
 }) {
   return (
     <div className={`rounded-2xl border border-border bg-card overflow-hidden transition-opacity duration-300 ${dimmed ? "opacity-40 pointer-events-none select-none" : ""}`}>
-      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/60">
-        <span className="text-muted-foreground/70">{icon}</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</span>
+      <div className="flex items-start gap-3 px-6 py-4 border-b border-border bg-muted/30">
+        <div className="h-8 w-8 rounded-lg bg-background border border-border flex items-center justify-center shrink-0 mt-0.5">
+          <span className="text-muted-foreground">{icon}</span>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{subtitle}</p>}
+        </div>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
   )
 }
 
-function FieldRow({ label, icon, error, errorMsg, filled, optional, children }: {
-  label: string; icon: React.ReactNode; error?: boolean; errorMsg?: string
-  filled?: boolean; optional?: boolean; children: React.ReactNode
+function Field({
+  label, hint, icon, error, errorMsg, filled, optional, children,
+}: {
+  label: string; hint?: string; icon?: React.ReactNode
+  error?: boolean; errorMsg?: string; filled?: boolean
+  optional?: boolean; children: React.ReactNode
 }) {
   return (
-    <div className="space-y-1.5">
-      <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${error ? "text-destructive" : "text-muted-foreground"}`}>
-        <span className={error ? "text-destructive" : "text-muted-foreground/60"}>{icon}</span>
-        {label}
-        {optional && !filled && !error && (
-          <span className="ml-auto text-xs font-normal normal-case tracking-normal text-muted-foreground/40">optional</span>
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5">
+        {icon && (
+          <span className={`shrink-0 ${error ? "text-destructive" : "text-muted-foreground/50"}`}>
+            {icon}
+          </span>
         )}
-        {filled && !error && <CheckCircle2 className="h-3 w-3 text-muted-foreground/50 ml-auto shrink-0" />}
-        {error && <AlertCircle className="h-3 w-3 text-destructive ml-auto shrink-0" />}
-      </label>
+        <label className={`text-sm font-medium leading-none ${error ? "text-destructive" : "text-foreground"}`}>
+          {label}
+        </label>
+        {optional && !filled && !error && (
+          <span className="ml-auto text-[11px] text-muted-foreground/50 border border-border/50 rounded px-1.5 py-0.5 leading-none">
+            Optional
+          </span>
+        )}
+        {filled && !error && (
+          <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
+        )}
+        {error && (
+          <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+        )}
+      </div>
+      {hint && !error && (
+        <p className="text-xs text-muted-foreground leading-snug">{hint}</p>
+      )}
       {children}
       {error && errorMsg && (
-        <p className="text-xs font-medium text-destructive/90">{errorMsg}</p>
+        <p className="text-xs text-destructive flex items-center gap-1">
+          <AlertCircle className="h-3 w-3 shrink-0" />
+          {errorMsg}
+        </p>
       )}
     </div>
   )
@@ -110,45 +243,53 @@ function StatusCard({ active, label, children }: {
   active: boolean; label: string; children: React.ReactNode
 }) {
   return (
-    <div className={`rounded-xl border p-3.5 transition-all duration-200 ${
-      active ? "border-border bg-muted/80" : "border-border/50 bg-muted/20 hover:border-border hover:bg-muted/40"
+    <div className={`rounded-xl border p-4 transition-all duration-200 ${
+      active
+        ? "border-foreground/20 bg-muted/50 shadow-sm"
+        : "border-border/50 bg-muted/10 hover:border-border hover:bg-muted/20"
     }`}>
       <div className="flex items-center gap-2.5 mb-3">
-        <div className={`h-4 w-4 shrink-0 rounded flex items-center justify-center text-[10px] font-black transition-all duration-200 ${
-          active ? "bg-foreground text-background" : "border border-border/60 bg-background"
-        }`}>{active && "✓"}</div>
-        <span className={`text-sm font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+        <div className={`h-5 w-5 shrink-0 rounded-md flex items-center justify-center transition-all duration-200 ${
+          active ? "bg-foreground text-background" : "border-2 border-border/60 bg-background"
+        }`}>
+          {active && <CheckCircle2 className="h-3 w-3" />}
+        </div>
+        <span className={`text-sm font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
+          {label}
+        </span>
       </div>
-      <div className="pl-6">{children}</div>
+      <div className="pl-7">{children}</div>
     </div>
   )
 }
 
 function StepTracker({ step }: { step: Step }) {
-  const steps: { key: Step; label: string; desc: string }[] = [
-    { key: "editing",    label: "Fill Form",  desc: "Enter details"   },
-    { key: "previewing", label: "Review PDF", desc: "Check & confirm" },
-    { key: "submitted",  label: "Submitted",  desc: "Saved to DB"     },
-  ]
-  const current = steps.findIndex(s => s.key === step)
+  const current = STEPS.findIndex(s => s.key === step)
   return (
-    <div className="flex items-center">
-      {steps.map((s, i) => {
-        const done = i < current; const active = i === current
+    <div className="flex items-center gap-1">
+      {STEPS.map((s, i) => {
+        const done   = i < current
+        const active = i === current
         return (
           <div key={s.key} className="flex items-center">
-            <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-300 ${active ? "bg-muted" : ""}`}>
-              <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
-                done ? "bg-muted-foreground text-background" : active ? "bg-foreground text-background ring-4 ring-border" : "border-2 border-border text-muted-foreground"
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-300 ${active ? "bg-muted" : ""}`}>
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 text-xs font-bold ${
+                done    ? "bg-success/10 text-success border border-success"
+                : active ? "bg-foreground text-background ring-[3px] ring-border"
+                :          "border-2 border-border/50 text-muted-foreground/50"
               }`}>
-                {done ? <CheckCircle2 className="h-3 w-3" /> : <span className="text-[10px] font-bold">{i + 1}</span>}
+                {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
               </div>
               <div className="hidden sm:block">
-                <p className={`text-xs font-semibold leading-none ${active ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</p>
-                <p className="text-xs mt-0.5 text-muted-foreground">{s.desc}</p>
+                <p className={`text-xs font-semibold leading-none ${
+                  done ? "text-success" : active ? "text-foreground" : "text-muted-foreground/40"
+                }`}>{s.label}</p>
+                <p className="text-[11px] text-muted-foreground/40 mt-0.5">{s.desc}</p>
               </div>
             </div>
-            {i < steps.length - 1 && <div className={`h-px w-5 mx-1 ${done ? "bg-border" : "bg-border/30"}`} />}
+            {i < STEPS.length - 1 && (
+              <div className={`h-px w-6 mx-0.5 transition-colors duration-500 ${done ? "bg-success/40" : "bg-border/40"}`} />
+            )}
           </div>
         )
       })}
@@ -156,18 +297,50 @@ function StepTracker({ step }: { step: Step }) {
   )
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────
+function ProgressBar({ value, filled, total }: { value: number; filled: number; total: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center text-xs">
+        <span className="text-muted-foreground font-medium">
+          {filled} of {total} required fields filled
+        </span>
+        <span className={`font-semibold tabular-nums ${value === 100 ? "text-success" : "text-muted-foreground"}`}>
+          {value}%
+        </span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ease-out ${
+            value === 100 ? "bg-success" : "bg-foreground/50"
+          }`}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+      {value === 100 && (
+        <p className="text-xs text-success font-medium flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          All required fields complete — ready to preview!
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CAV() {
-  const navigate = useNavigate()
-  const { px } = useCollapse()
+  const navigate  = useNavigate()
+  const { px }    = useCollapse()
+  const { registerGuard, guardedNavigate } = useNavigationGuard()
 
+  // ── State ──────────────────────────────────────────────────────────────────
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
   const [generatingPreview, setGenerating]  = useState(false)
   const [printing, setPrinting]             = useState(false)
   const [savedForm, setSavedForm]           = useState<(CavFormData & { id: string }) | null>(null)
   const [fieldErrors, setFieldErrors]       = useState<Partial<Record<keyof CavFormData, string>>>({})
+  const [touchedFields, setTouchedFields]   = useState<Set<keyof CavFormData>>(new Set())
   const [formData, setFormData]             = useState<CavFormData>(EMPTY)
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null)
   const [toasts, setToasts]                 = useState<Toast[]>([])
@@ -175,39 +348,93 @@ export default function CAV() {
   const [submittedOptions, setSubmitted]    = useState<any[]>([])
   const [showSubmitDialog, setSubmitDialog] = useState(false)
   const [showBackDialog, setBackDialog]     = useState(false)
+  const [showReloadDialog, setReloadDialog] = useState(false)
+  const [errorDismissed, setErrorDismissed] = useState(false)
 
-  const isDirty = step !== "submitted" && Object.values(formData).some(v =>
-    typeof v === "boolean" ? v : !!(v as string)?.trim()
-  )
+  // ── Navigation guard ref ───────────────────────────────────────────────────
+  const guardRef = useRef({ step: "editing" as Step, isDirty: false })
 
-  // ── Guard: browser tab close / refresh ──
+  // ── Derived: dirty ─────────────────────────────────────────────────────────
+  const isDirty =
+    step === "previewing" ||
+    (step === "editing" &&
+      Object.values(formData).some(v =>
+        typeof v === "boolean" ? v : !!(v as string)?.trim()
+      ))
+  useEffect(() => {
+    guardRef.current = { step, isDirty }
+  }, [step, isDirty])
+  useEffect(() => {
+    const unregister = registerGuard(() => {
+      const { isDirty: dirty, step: s } = guardRef.current
+      return s !== "submitted" && dirty
+    })
+    return unregister
+  }, [registerGuard])
+
+  // ── Effects ────────────────────────────────────────────────────────────────
+
+  // Dismiss the error banner whenever errors change
+  useEffect(() => { setErrorDismissed(false) }, [fieldErrors])
+
+  // Block browser tab-close / refresh when dirty OR on submitted step
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = "" }
+      if (guardRef.current.isDirty || guardRef.current.step === "submitted") {
+        e.preventDefault()
+        e.returnValue = ""
+      }
     }
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [isDirty])
+  }, []) // registered once; reads live values from ref
 
-  // ── Guard: browser back button ──
+  // Block browser back button — stale-closure-safe via ref
   useEffect(() => {
     window.history.pushState(null, "", window.location.href)
     const handlePopState = () => {
-      if (isDirty) {
+      const { isDirty: dirty, step: s } = guardRef.current
+      if (s === "submitted") { navigate("/"); return }
+      if (dirty) {
         window.history.pushState(null, "", window.location.href)
         setBackDialog(true)
+        return
       }
+      navigate("/")
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [isDirty])
+  }, [navigate])
 
+  // Intercept keyboard reload shortcuts (F5, Ctrl+R, Cmd+R)
+  // and replace the native browser dialog with our shadcn one.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const { isDirty: dirty, step: s } = guardRef.current
+      if (!(dirty || s === "submitted")) return
+      const isReload =
+        e.key === "F5" ||
+        (e.ctrlKey && e.key === "r") ||
+        (e.ctrlKey && e.shiftKey && e.key === "R") ||
+        (e.metaKey && e.key === "r")
+      if (isReload) {
+        e.preventDefault()
+        setReloadDialog(true)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // Load signatories
   useEffect(() => {
     supabase.from("signatories").select("id, full_name, position").eq("role_type", "assistant_registrar")
       .then(({ data }) => setPrepared(data || []))
     supabase.from("signatories").select("id, full_name, position").in("role_type", ["registrar", "principal"])
       .then(({ data }) => setSubmitted(data || []))
   }, [])
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const pushToast = (type: Toast["type"], title: string, message: string) => {
     const id = Date.now()
@@ -218,14 +445,71 @@ export default function CAV() {
   const clearError = (key: keyof CavFormData) =>
     setFieldErrors(p => { const n = { ...p }; delete n[key]; return n })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    clearError(e.target.name as keyof CavFormData)
-    setFormData(p => ({ ...p, [e.target.name]: e.target.value }))
+  const markTouched = (key: keyof CavFormData) =>
+    setTouchedFields(p => new Set(p).add(key))
+
+  // Re-validate a cross-field pair whenever one side changes
+  const revalidatePair = (
+    updated: CavFormData,
+    keys: (keyof CavFormData)[],
+  ) => {
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      for (const k of keys) {
+        // Only show the error if the field has been touched
+        if (!touchedFields.has(k) && !prev[k]) continue
+        const err = validateField(k, updated)
+        if (err) next[k] = err
+        else delete next[k]
+      }
+      return next
+    })
   }
+
+  // ── Change handlers ────────────────────────────────────────────────────────
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const key = e.target.name as keyof CavFormData
+    const updated = { ...formData, [key]: e.target.value }
+    setFormData(updated)
+
+    // If this field has been touched (blurred before), validate live
+    if (touchedFields.has(key)) {
+      const err = validateField(key, updated)
+      if (err) setFieldErrors(p => ({ ...p, [key]: err }))
+      else clearError(key)
+    }
+
+    // Always re-validate cross-field date relationships live
+    if (key === "date_of_application") revalidatePair(updated, ["date_issued"])
+    if (key === "date_issued")         revalidatePair(updated, ["date_of_transmission"])
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const key = e.target.name as keyof CavFormData
+    markTouched(key)
+    const err = validateField(key, formData)
+    if (err) setFieldErrors(p => ({ ...p, [key]: err }))
+    else clearError(key)
+  }
+
   const handleDate = (name: keyof CavFormData, val: string) => {
     clearError(name)
-    setFormData(p => ({ ...p, [name]: val }))
+    const updated = { ...formData, [name]: val }
+    setFormData(updated)
+    markTouched(name)
+
+    // Validate the changed field itself
+    const err = validateField(name, updated)
+    if (err) setFieldErrors(p => ({ ...p, [name]: err }))
+
+    // Re-validate cross-field date pairs
+    if (name === "date_of_application") revalidatePair(updated, ["date_issued"])
+    if (name === "date_issued")         revalidatePair(updated, ["date_issued", "date_of_transmission"])
+    if (name === "date_of_transmission") revalidatePair(updated, ["date_of_transmission"])
   }
+
+  // ── Computed ───────────────────────────────────────────────────────────────
 
   const requiredKeys   = (Object.keys(EMPTY) as (keyof CavFormData)[]).filter(k => !OPTIONAL.includes(k))
   const filledRequired = requiredKeys.filter(k => !!(formData[k] as string)?.trim()).length
@@ -241,28 +525,86 @@ export default function CAV() {
     return typeof v === "boolean" ? v : !!v?.trim()
   }
   const inputCls = (key: keyof CavFormData) =>
-    `h-9 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-50 ${
-      hasErr(key)     ? "border-destructive bg-destructive/5 focus-visible:ring-destructive"
-      : isFilled(key) ? "border-border bg-muted focus-visible:ring-ring"
-      : "border-border bg-background focus-visible:ring-ring"
+    `h-10 rounded-lg text-sm transition-all focus-visible:ring-1 disabled:opacity-50 ${
+      hasErr(key)
+        ? "border-destructive bg-destructive/5 focus-visible:ring-destructive"
+        : isFilled(key)
+        ? "border-border bg-muted/60 focus-visible:ring-ring"
+        : "border-border bg-background focus-visible:ring-ring"
     }`
 
-  const isLocked = step !== "editing"
+  const isLocked   = step !== "editing"
+  const prepObj    = preparedOptions.find(p => p.id === formData.prepared_by)
+  const subObj     = submittedOptions.find(s => s.id === formData.submitted_by)
+  const errorCount = Object.keys(fieldErrors).length
+  const showErrorAlert = errorCount > 0 && step === "editing" && !errorDismissed
+
+  // ── Full form validation (runs on Preview PDF click) ──────────────────────
 
   const validate = (): boolean => {
     const errors: Partial<Record<keyof CavFormData, string>> = {}
+
+    // 1. Required field presence + their format rules
     for (const key of requiredKeys) {
-      if (!(formData[key] as string)?.trim()) errors[key] = `${FIELD_LABELS[key]} is required`
+      const val = formData[key]
+      const empty = typeof val === "boolean" ? false : !(val as string)?.trim()
+      if (empty) {
+        errors[key] = `${FIELD_LABELS[key]} is required`
+      } else {
+        const ruleErr = validateField(key, formData)
+        if (ruleErr) errors[key] = ruleErr
+      }
     }
+
+    // 2. Optional fields — only validate format if they have a value
+    const optionalFormatKeys: (keyof CavFormData)[] = [
+      "school_year_completed", "enrolled_sy",
+      "status_completed_sy", "status_graduated_sy",
+    ]
+    for (const key of optionalFormatKeys) {
+      if ((formData[key] as string)?.trim()) {
+        const ruleErr = validateField(key, formData)
+        if (ruleErr) errors[key] = ruleErr
+      }
+    }
+
+    // 3. At least one student status row must be filled
+    const hasAnyStatus =
+      formData.enrolled_grade?.trim() || formData.enrolled_sy?.trim() ||
+      formData.status_completed_grade?.trim() || formData.status_completed_sy?.trim() ||
+      formData.status_graduated_sy?.trim()
+    if (!hasAnyStatus) {
+      errors["enrolled_grade"] = "At least one status row must be filled (enrolled, completed, or graduated)"
+    }
+
+    // 4. Prepared By ≠ Submitted By
+    if (
+      formData.prepared_by &&
+      formData.submitted_by &&
+      formData.prepared_by === formData.submitted_by
+    ) {
+      errors["submitted_by"] = "Submitted By must be a different person from Prepared By"
+    }
+
+    // Mark all fields as touched so per-field errors show going forward
+    setTouchedFields(new Set(Object.keys(EMPTY) as (keyof CavFormData)[]))
     setFieldErrors(errors)
+
     const count = Object.keys(errors).length
     if (count > 0) {
-      pushToast("error", "Incomplete form", `${count} field${count > 1 ? "s" : ""} need attention`)
+      pushToast(
+        "error",
+        "Some fields need attention",
+        `Fix ${count} issue${count > 1 ? "s" : ""} before previewing.`,
+      )
       const firstKey = Object.keys(errors)[0]
-      document.getElementsByName(firstKey)[0]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      document.getElementsByName(firstKey)[0]
+        ?.scrollIntoView({ behavior: "smooth", block: "center" })
     }
     return count === 0
   }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   const handlePreview = async () => {
     if (!validate()) return
@@ -284,6 +626,8 @@ export default function CAV() {
   const handleEditFromPreview = () => { setStep("editing"); setPreviewUrl(null) }
 
   const handleConfirmSubmit = async () => {
+    // Guard against double-submit (in case button re-enable race condition)
+    if (submitting) return
     try {
       setSubmitting(true)
       const { data: { user } } = await supabase.auth.getUser()
@@ -293,11 +637,21 @@ export default function CAV() {
         userId: user.id, userEmail: user.email!, label: "CAV Form",
       })
       if (!created?.id) throw new Error("Form creation failed")
+<<<<<<< HEAD
+=======
+      try {
+        await logAudit({
+          action: "created",
+          event: `Created CAV JHS form for ${formData.full_legal_name}`,
+          recordId: created.id, newData: formData,
+        })
+      } catch (e) { console.error("Audit log failed:", e) }
+>>>>>>> dev
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
       setSubmitDialog(false)
       setStep("submitted")
-      pushToast("success", "Submitted!", `CAV form for ${formData.full_legal_name} was saved.`)
+      pushToast("success", "Form submitted!", `CAV form for ${formData.full_legal_name} was saved successfully.`)
       setGenerating(true)
       const url = await generatePreviewUrl(saved, preparedOptions, submittedOptions)
       setPreviewUrl(url)
@@ -315,12 +669,10 @@ export default function CAV() {
     setPrinting(true)
     try {
       const url = previewUrl ?? await generatePreviewUrl(formData, preparedOptions, submittedOptions)
-
       const iframe = document.createElement("iframe")
       iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:0"
       iframe.src = url
       document.body.appendChild(iframe)
-
       iframe.onload = () => {
         const cleanup = () => {
           if (document.body.contains(iframe)) document.body.removeChild(iframe)
@@ -343,25 +695,25 @@ export default function CAV() {
     }
   }
 
+  // In-app back button — submitted is always free; everything else goes via guard
   const handleBack = () => {
-    if (step === "submitted")  { navigate("/"); return }
-    if (step === "previewing") { handleEditFromPreview(); return }
-    if (isDirty) { setBackDialog(true) } else { navigate("/") }
+    if (step === "submitted") { navigate("/"); return }
+    guardedNavigate("/")
   }
 
-  const prepObj    = preparedOptions.find(p => p.id === formData.prepared_by)
-  const subObj     = submittedOptions.find(s => s.id === formData.submitted_by)
-  const errorCount = Object.keys(fieldErrors).length
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="bg-background min-h-screen">
       <div className={`${px} py-8 transition-all duration-300`}>
 
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-7">
+        {/* ══ PAGE HEADER ══════════════════════════════════════════════════════ */}
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={handleBack}
-              className="gap-1 text-muted-foreground hover:text-foreground h-8 px-2">
+            <Button
+              variant="ghost" size="sm" onClick={handleBack}
+              className="text-muted-foreground hover:text-foreground h-9 w-9 p-0 rounded-lg"
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-sm shrink-0">
@@ -369,209 +721,459 @@ export default function CAV() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight leading-none">CAV Form</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Junior High School — Certification, Authentication & Verification</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Certification, Authentication &amp; Verification — Junior High School
+              </p>
             </div>
           </div>
           <StepTracker step={step} />
         </div>
 
-        {/* ── Error summary banner ── */}
-        {errorCount > 0 && step === "editing" && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 animate-in slide-in-from-top-2 duration-200">
-            <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-destructive">
-                {errorCount} field{errorCount > 1 ? "s" : ""} need attention
-              </p>
-              <p className="text-sm text-destructive/70 mt-0.5 line-clamp-2">
-                {Object.values(fieldErrors).filter(Boolean).join(" · ")}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ── Previewing banner — single source of actions ── */}
-        {step === "previewing" && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-white dark:bg-background border border-amber-200 dark:border-amber-900/50 flex items-center justify-center shrink-0">
-                <Eye className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        {/* ══ VALIDATION ERROR BANNER ══════════════════════════════════════════ */}
+        {showErrorAlert && (
+          <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-destructive/30 bg-destructive/5 overflow-hidden">
+            <div className="flex items-start gap-3 px-4 py-3.5">
+              <div className="h-8 w-8 rounded-lg bg-destructive/20 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="h-4 w-4 text-destructive" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 leading-none">Review before submitting</p>
-                <p className="text-sm text-amber-700/80 dark:text-amber-400/70 mt-1">Check the PDF on the right. Go back to edit, or confirm to submit.</p>
+                <p className="text-sm font-semibold text-destructive leading-none mb-2">
+                  {errorCount} field{errorCount > 1 ? "s" : ""} need{errorCount === 1 ? "s" : ""} attention
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.values(fieldErrors).filter(Boolean).map((msg, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center rounded-md bg-destructive/15 border border-destructive/20 px-2 py-0.5 text-[11px] font-medium text-destructive leading-none"
+                    >
+                      {msg?.replace(" is required", "").replace("Must be in YYYY-YYYY format (e.g. 2023-2024)", "Invalid format")}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setErrorDismissed(true)}
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                aria-label="Dismiss"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ REVIEW BANNER ════════════════════════════════════════════════════ */}
+        {step === "previewing" && (
+          <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-info/30 bg-info/5 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="h-8 w-8 rounded-lg bg-info/20 flex items-center justify-center shrink-0">
+                <Eye className="h-4 w-4 text-info" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-info leading-none mb-0.5">
+                  Review your PDF before submitting
+                </p>
+                <p className="text-xs text-info/70 leading-snug">
+                  Check the preview on the right — if everything looks correct, click{" "}
+                  <span className="font-semibold text-info">Confirm &amp; Submit</span>.
+                </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" onClick={handleEditFromPreview}
-                  className="h-8 gap-1.5 text-sm rounded-lg border-amber-300 dark:border-amber-800">
+                <Button
+                  variant="outline" size="sm" onClick={handleEditFromPreview}
+                  className="h-8 gap-1.5 text-xs rounded-lg border-info/40 text-info bg-transparent hover:bg-info/10 hover:text-info"
+                >
                   <Edit2 className="h-3 w-3" /> Edit
                 </Button>
-                <Button size="sm" onClick={() => setSubmitDialog(true)} className="h-8 gap-1.5 text-sm rounded-lg">
-                  <ShieldCheck className="h-3 w-3" /> Confirm & Submit
+                <Button
+                  size="sm" onClick={() => setSubmitDialog(true)}
+                  className="h-8 gap-1.5 text-xs rounded-lg bg-info hover:bg-info/90 text-white border-0"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" /> Confirm &amp; Submit
                 </Button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Submitted banner ── */}
+        {/* ══ SUBMITTED BANNER ═════════════════════════════════════════════════ */}
         {step === "submitted" && (
-          <div className="mb-5 rounded-xl border border-border bg-muted/60 overflow-hidden">
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-9 w-9 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-success/30 bg-success/5 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <div className="h-8 w-8 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-success" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground leading-none">Form submitted successfully</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  CAV form for <span className="font-medium text-foreground">{formData.full_legal_name}</span> has been saved to the database.
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-success leading-none mb-0.5">
+                  Form submitted successfully
+                </p>
+                <p className="text-xs text-success/80 leading-snug">
+                  CAV form for{" "}
+                  <span className="font-semibold text-success">{formData.full_legal_name}</span>{" "}
+                  has been saved. Download or print it using the buttons on the right.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-[1fr_490px] gap-5 items-start">
-          <div className="space-y-4">
+        {/* ══ MAIN LAYOUT ══════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-[1fr_490px] gap-6 items-start">
 
-            {/* ── Student Information ── */}
-            <SectionBlock title="Student Information" icon={<User className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
-              <div className="grid grid-cols-2 gap-4">
+          {/* ── LEFT: Form sections ─────────────────────────────────────────── */}
+          <div className="space-y-5">
+
+            {/* 1 ── Student Information */}
+            <SectionCard
+              title="Student Information"
+              subtitle="Basic details about the student this CAV form is being prepared for."
+              icon={<User className="h-4 w-4" />}
+              dimmed={step === "submitted"}
+            >
+              <div className="grid grid-cols-2 gap-x-5 gap-y-5">
                 <div className="col-span-2">
-                  <FieldRow label="Complete Name" icon={<User className="h-3 w-3" />}
-                    error={hasErr("full_legal_name")} errorMsg={fieldErrors.full_legal_name}
-                    filled={isFilled("full_legal_name")}>
-                    <Input name="full_legal_name" value={formData.full_legal_name} onChange={handleChange}
-                      disabled={isLocked} placeholder="Full legal name" className={inputCls("full_legal_name")} />
-                  </FieldRow>
+                  <Field
+                    label="Full Legal Name"
+                    hint="Enter the name exactly as it appears on official school documents."
+                    icon={<User className="h-3.5 w-3.5" />}
+                    error={hasErr("full_legal_name")}
+                    errorMsg={fieldErrors.full_legal_name}
+                    filled={isFilled("full_legal_name") && !hasErr("full_legal_name")}
+                  >
+                    <Input
+                      name="full_legal_name"
+                      value={formData.full_legal_name}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isLocked}
+                      placeholder="e.g. Juan Dela Cruz"
+                      className={inputCls("full_legal_name")}
+                      maxLength={120}
+                    />
+                  </Field>
                 </div>
-                <FieldRow label="Control No." icon={<Hash className="h-3 w-3" />}
-                  error={hasErr("control_no")} errorMsg={fieldErrors.control_no} filled={isFilled("control_no")}>
-                  <Input name="control_no" value={formData.control_no} onChange={handleChange}
-                    disabled={isLocked} placeholder="e.g. 2024-001" className={inputCls("control_no")} />
-                </FieldRow>
-                <FieldRow label="SY Completed" icon={<GraduationCap className="h-3 w-3" />}
-                  filled={isFilled("school_year_completed")} optional>
-                  <Input name="school_year_completed" value={formData.school_year_completed} onChange={handleChange}
-                    disabled={isLocked} placeholder="e.g. 2023-2024" className={inputCls("school_year_completed")} />
-                </FieldRow>
-                <FieldRow label="SY Graduated" icon={<GraduationCap className="h-3 w-3" />}
-                  error={hasErr("school_year_graduated")} errorMsg={fieldErrors.school_year_graduated}
-                  filled={isFilled("school_year_graduated")}>
-                  <DatePicker value={formData.school_year_graduated} onChange={v => handleDate("school_year_graduated", v)}
-                    disabled={isLocked} placeholder="Pick date"
-                    className={hasErr("school_year_graduated") ? "border-destructive bg-destructive/5" : isFilled("school_year_graduated") ? "border-border bg-muted" : ""} />
-                </FieldRow>
-              </div>
-            </SectionBlock>
 
-            {/* ── Dates ── */}
-            <SectionBlock title="Dates" icon={<Calendar className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
-              <div className="grid grid-cols-3 gap-4">
-                <FieldRow label="Date Issued" icon={<Calendar className="h-3 w-3" />}
-                  error={hasErr("date_issued")} errorMsg={fieldErrors.date_issued} filled={isFilled("date_issued")}>
-                  <DatePicker value={formData.date_issued} onChange={v => handleDate("date_issued", v)}
-                    disabled={isLocked} placeholder="Pick date"
-                    className={hasErr("date_issued") ? "border-destructive bg-destructive/5" : isFilled("date_issued") ? "border-border bg-muted" : ""} />
-                </FieldRow>
-                <FieldRow label="Date of Application" icon={<Calendar className="h-3 w-3" />}
-                  error={hasErr("date_of_application")} errorMsg={fieldErrors.date_of_application} filled={isFilled("date_of_application")}>
-                  <DatePicker value={formData.date_of_application} onChange={v => handleDate("date_of_application", v)}
-                    disabled={isLocked} placeholder="Pick date"
-                    className={hasErr("date_of_application") ? "border-destructive bg-destructive/5" : isFilled("date_of_application") ? "border-border bg-muted" : ""} />
-                </FieldRow>
-                <FieldRow label="Date of Transmission" icon={<Send className="h-3 w-3" />}
-                  error={hasErr("date_of_transmission")} errorMsg={fieldErrors.date_of_transmission} filled={isFilled("date_of_transmission")}>
-                  <DatePicker value={formData.date_of_transmission} onChange={v => handleDate("date_of_transmission", v)}
-                    disabled={isLocked} placeholder="Pick date"
-                    className={hasErr("date_of_transmission") ? "border-destructive bg-destructive/5" : isFilled("date_of_transmission") ? "border-border bg-muted" : ""} />
-                </FieldRow>
-              </div>
-            </SectionBlock>
+                <Field
+                  label="Control Number"
+                  icon={<Hash className="h-3.5 w-3.5" />}
+                  error={hasErr("control_no")}
+                  errorMsg={fieldErrors.control_no}
+                  filled={isFilled("control_no") && !hasErr("control_no")}
+                >
+                  <div className={`flex h-10 rounded-lg border text-sm transition-all overflow-hidden ${
+                    hasErr("control_no") ? "border-destructive" : "border-border"
+                  }`}>
+                    <span className={`flex items-center px-3 text-sm font-medium border-r select-none shrink-0 ${
+                      hasErr("control_no")
+                        ? "bg-destructive/10 border-destructive text-destructive"
+                        : "bg-muted border-border text-muted-foreground"
+                    }`}>
+                      RHS-
+                    </span>
+                    <Input
+                      name="control_no"
+                      value={formData.control_no.replace(/^RHS-/i, "")}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/^RHS-/i, "")
+                        const synth = { ...e, target: { ...e.target, name: "control_no", value: `RHS-${raw}` } }
+                        handleChange(synth as React.ChangeEvent<HTMLInputElement>)
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isLocked}
+                      placeholder="031626"
+                      className="border-0 rounded-none h-full focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent flex-1 min-w-0"
+                      maxLength={26}
+                    />
+                  </div>
+                </Field>
 
-            {/* ── Student Status ── */}
-            <SectionBlock title="Student Status" icon={<BookOpen className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
-              <p className="text-sm text-muted-foreground mb-3.5">
-                Optional — entering values will auto-fill and check the corresponding box in the PDF.
-              </p>
-              <div className="mb-3.5 rounded-xl border border-border p-3.5">
+                <Field
+                  label="School Year Completed"
+                  icon={<GraduationCap className="h-3.5 w-3.5" />}
+                  error={hasErr("school_year_completed")}
+                  errorMsg={fieldErrors.school_year_completed}
+                  filled={isFilled("school_year_completed") && !hasErr("school_year_completed")}
+                  optional
+                >
+                  <Input
+                    name="school_year_completed"
+                    value={formData.school_year_completed}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    disabled={isLocked}
+                    placeholder="e.g. 2023-2024"
+                    className={inputCls("school_year_completed")}
+                    maxLength={9}
+                  />
+                </Field>
+
+                <Field
+                  label="School Year Graduated"
+                  icon={<GraduationCap className="h-3.5 w-3.5" />}
+                  error={hasErr("school_year_graduated")}
+                  errorMsg={fieldErrors.school_year_graduated}
+                  filled={isFilled("school_year_graduated") && !hasErr("school_year_graduated")}
+                >
+                  <DatePicker
+                    value={formData.school_year_graduated}
+                    onChange={v => handleDate("school_year_graduated", v)}
+                    disabled={isLocked}
+                    placeholder="Pick a date"
+                    className={hasErr("school_year_graduated") ? "border-destructive bg-destructive/5" : isFilled("school_year_graduated") ? "border-border bg-muted/60" : ""}
+                  />
+                </Field>
+              </div>
+            </SectionCard>
+
+            {/* 2 ── Important Dates */}
+            <SectionCard
+              title="Important Dates"
+              subtitle="Dates are order-validated: application ≤ issued ≤ transmission."
+              icon={<Calendar className="h-4 w-4" />}
+              dimmed={step === "submitted"}
+            >
+              <div className="grid grid-cols-3 gap-x-5 gap-y-5">
+                <Field
+                  label="Date of Application"
+                  icon={<Calendar className="h-3.5 w-3.5" />}
+                  error={hasErr("date_of_application")}
+                  errorMsg={fieldErrors.date_of_application}
+                  filled={isFilled("date_of_application") && !hasErr("date_of_application")}
+                >
+                  <DatePicker
+                    value={formData.date_of_application}
+                    onChange={v => handleDate("date_of_application", v)}
+                    disabled={isLocked}
+                    placeholder="Pick a date"
+                    className={hasErr("date_of_application") ? "border-destructive bg-destructive/5" : isFilled("date_of_application") ? "border-border bg-muted/60" : ""}
+                  />
+                </Field>
+
+                <Field
+                  label="Date Issued"
+                  icon={<Calendar className="h-3.5 w-3.5" />}
+                  error={hasErr("date_issued")}
+                  errorMsg={fieldErrors.date_issued}
+                  filled={isFilled("date_issued") && !hasErr("date_issued")}
+                >
+                  <DatePicker
+                    value={formData.date_issued}
+                    onChange={v => handleDate("date_issued", v)}
+                    disabled={isLocked}
+                    placeholder="Pick a date"
+                    className={hasErr("date_issued") ? "border-destructive bg-destructive/5" : isFilled("date_issued") ? "border-border bg-muted/60" : ""}
+                  />
+                </Field>
+
+                <Field
+                  label="Date of Transmission"
+                  icon={<Send className="h-3.5 w-3.5" />}
+                  error={hasErr("date_of_transmission")}
+                  errorMsg={fieldErrors.date_of_transmission}
+                  filled={isFilled("date_of_transmission") && !hasErr("date_of_transmission")}
+                >
+                  <DatePicker
+                    value={formData.date_of_transmission}
+                    onChange={v => handleDate("date_of_transmission", v)}
+                    disabled={isLocked}
+                    placeholder="Pick a date"
+                    className={hasErr("date_of_transmission") ? "border-destructive bg-destructive/5" : isFilled("date_of_transmission") ? "border-border bg-muted/60" : ""}
+                  />
+                </Field>
+              </div>
+            </SectionCard>
+
+            {/* 3 ── Student Status */}
+            <SectionCard
+              title="Student Status"
+              subtitle="At least one row is required. The PDF will automatically check the matching box for each row you fill."
+              icon={<BookOpen className="h-4 w-4" />}
+              dimmed={step === "submitted"}
+            >
+              {/* Show cross-field "at least one" error at the top of this section */}
+              {hasErr("enrolled_grade") && fieldErrors.enrolled_grade?.startsWith("At least") && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                  <p className="text-xs text-destructive">{fieldErrors.enrolled_grade}</p>
+                </div>
+              )}
+
+              <div className="mb-5 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">Completion Status</p>
-                    <p className="text-xs text-muted-foreground">
-                      Controls the output text printed on the PDF
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Completion Status</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Toggle between <strong>Attended</strong> and <strong>Completed</strong>.
+                      This controls the wording printed on the PDF.
                     </p>
                   </div>
                   <button
                     type="button"
                     disabled={isLocked}
                     onClick={() => setFormData(p => ({ ...p, is_graduated: !p.is_graduated }))}
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none disabled:opacity-50 ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none disabled:opacity-50 ${
                       formData.is_graduated ? "bg-foreground" : "bg-muted-foreground/30"
                     }`}
+                    aria-label="Toggle completion status"
                   >
-                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform ${
-                      formData.is_graduated ? "translate-x-4" : "translate-x-0"
+                    <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                      formData.is_graduated ? "translate-x-5" : "translate-x-0"
                     }`} />
                   </button>
                 </div>
-                <div className={`mt-2.5 flex items-center gap-2 text-xs font-medium px-2.5 py-1.5 rounded-lg w-fit transition-all ${
+                <div className={`mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-all ${
                   formData.is_graduated
-                    ? "bg-foreground/8 text-foreground"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-foreground/8 text-foreground border border-foreground/10"
+                    : "bg-muted text-muted-foreground border border-border"
                 }`}>
                   <GraduationCap className="h-3 w-3" />
                   {formData.is_graduated ? "Completed" : "Attended"}
                 </div>
               </div>
+
               <div className="space-y-2.5">
+                {/* Enrolled row */}
                 <StatusCard active={enrolledActive} label="Enrolled in">
                   <div className="flex items-center gap-2">
-                    <Input name="enrolled_grade" value={formData.enrolled_grade} onChange={handleChange}
-                      disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
-                      className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_grade ? "bg-muted" : "bg-background"}`} />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">during SY</span>
-                    <Input name="enrolled_sy" value={formData.enrolled_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-8 text-sm w-24 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_sy ? "bg-muted" : "bg-background"}`} />
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        name="enrolled_grade"
+                        value={formData.enrolled_grade}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="Grade level (e.g. Grade 10)"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${formData.enrolled_grade ? "bg-muted/60" : "bg-background"}`}
+                        maxLength={40}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
+                    <div className="w-28 space-y-1">
+                      <Input
+                        name="enrolled_sy"
+                        value={formData.enrolled_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("enrolled_sy") ? "border-destructive bg-destructive/5" :
+                          formData.enrolled_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("enrolled_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.enrolled_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
+
+                {/* Completed row */}
                 <StatusCard active={completedActive} label="Completed">
                   <div className="flex items-center gap-2">
-                    <Input name="status_completed_grade" value={formData.status_completed_grade} onChange={handleChange}
-                      disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
-                      className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted" : "bg-background"}`} />
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">during SY</span>
-                    <Input name="status_completed_sy" value={formData.status_completed_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-8 text-sm w-24 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_sy ? "bg-muted" : "bg-background"}`} />
+                    <Input
+                      name="status_completed_grade"
+                      value={formData.status_completed_grade}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isLocked}
+                      placeholder="Grade level (e.g. Grade 10)"
+                      className={`h-9 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted/60" : "bg-background"}`}
+                      maxLength={40}
+                    />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
+                    <div className="w-28 space-y-1">
+                      <Input
+                        name="status_completed_sy"
+                        value={formData.status_completed_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("status_completed_sy") ? "border-destructive bg-destructive/5" :
+                          formData.status_completed_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("status_completed_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.status_completed_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
+
+                {/* Graduated row */}
                 <StatusCard active={graduatedActive} label="Satisfactorily graduated from Secondary Course">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">for SY</span>
-                    <Input name="status_graduated_sy" value={formData.status_graduated_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-8 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_graduated_sy ? "bg-muted" : "bg-background"}`} />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">for SY</span>
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        name="status_graduated_sy"
+                        value={formData.status_graduated_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("status_graduated_sy") ? "border-destructive bg-destructive/5" :
+                          formData.status_graduated_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("status_graduated_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.status_graduated_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
               </div>
-            </SectionBlock>
+            </SectionCard>
 
-            {/* ── Signatories ── */}
-            <SectionBlock title="Signatories" icon={<Pen className="h-3.5 w-3.5" />} dimmed={step === "submitted"}>
-              <div className="grid grid-cols-2 gap-4">
+            {/* 4 ── Signatories */}
+            <SectionCard
+              title="Signatories"
+              subtitle="Select the staff members who will sign the CAV form. They must be different people."
+              icon={<Pen className="h-4 w-4" />}
+              dimmed={step === "submitted"}
+            >
+              <div className="grid grid-cols-2 gap-5">
                 {/* Prepared By */}
-                <div className="space-y-1.5">
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${hasErr("prepared_by") ? "text-destructive" : "text-muted-foreground"}`}>
-                    <Pen className="h-3 w-3 opacity-60" /> Prepared By
-                    {hasErr("prepared_by") && <AlertCircle className="h-3 w-3 text-destructive ml-auto" />}
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                    <label className={`text-sm font-medium ${hasErr("prepared_by") ? "text-destructive" : "text-foreground"}`}>
+                      Prepared By
+                    </label>
+                    {isFilled("prepared_by") && !hasErr("prepared_by") && (
+                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
+                    )}
+                    {hasErr("prepared_by") && (
+                      <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                    )}
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${hasErr("prepared_by") ? "border-destructive bg-destructive/5" : prepObj ? "border-border bg-muted" : ""}`}>
+                      <Button
+                        variant="outline"
+                        className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                          hasErr("prepared_by") ? "border-destructive bg-destructive/5"
+                          : prepObj ? "border-border bg-muted/60" : ""
+                        }`}
+                      >
                         <span className={`truncate text-left text-sm ${!prepObj ? "text-muted-foreground" : ""}`}>
-                          {prepObj ? prepObj.full_name : "Select signatory"}
+                          {prepObj ? prepObj.full_name : "Select a signatory…"}
                         </span>
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
                       </Button>
@@ -580,31 +1182,58 @@ export default function CAV() {
                       {preparedOptions.map(p => (
                         <DropdownMenuItem key={p.id} onSelect={() => {
                           setFormData(prev => ({ ...prev, prepared_by: p.id }))
+                          markTouched("prepared_by")
                           clearError("prepared_by")
+                          // Re-check the same-person cross-field error on submitted_by too
+                          if (formData.submitted_by && p.id === formData.submitted_by) {
+                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                          } else {
+                            clearError("submitted_by")
+                          }
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{p.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{p.position}</p>
+                            <p className="text-xs text-muted-foreground">{p.position}</p>
                           </div>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {hasErr("prepared_by") && <p className="text-xs font-medium text-destructive/90">{fieldErrors.prepared_by}</p>}
-                  {prepObj && !hasErr("prepared_by") && <p className="text-xs text-muted-foreground pl-1 truncate">{prepObj.position}</p>}
+                  {hasErr("prepared_by") && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.prepared_by}
+                    </p>
+                  )}
+                  {prepObj && !hasErr("prepared_by") && (
+                    <p className="text-xs text-muted-foreground pl-1 truncate">{prepObj.position}</p>
+                  )}
                 </div>
 
                 {/* Submitted By */}
-                <div className="space-y-1.5">
-                  <label className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${hasErr("submitted_by") ? "text-destructive" : "text-muted-foreground"}`}>
-                    <Pen className="h-3 w-3 opacity-60" /> Submitted By
-                    {hasErr("submitted_by") && <AlertCircle className="h-3 w-3 text-destructive ml-auto" />}
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                    <label className={`text-sm font-medium ${hasErr("submitted_by") ? "text-destructive" : "text-foreground"}`}>
+                      Submitted By
+                    </label>
+                    {isFilled("submitted_by") && !hasErr("submitted_by") && (
+                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
+                    )}
+                    {hasErr("submitted_by") && (
+                      <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                    )}
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button variant="outline" className={`w-full h-9 px-3 text-sm font-normal justify-between disabled:opacity-50 ${hasErr("submitted_by") ? "border-destructive bg-destructive/5" : subObj ? "border-border bg-muted" : ""}`}>
+                      <Button
+                        variant="outline"
+                        className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                          hasErr("submitted_by") ? "border-destructive bg-destructive/5"
+                          : subObj ? "border-border bg-muted/60" : ""
+                        }`}
+                      >
                         <span className={`truncate text-left text-sm ${!subObj ? "text-muted-foreground" : ""}`}>
-                          {subObj ? subObj.full_name : "Select signatory"}
+                          {subObj ? subObj.full_name : "Select a signatory…"}
                         </span>
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
                       </Button>
@@ -613,142 +1242,174 @@ export default function CAV() {
                       {submittedOptions.map(s => (
                         <DropdownMenuItem key={s.id} onSelect={() => {
                           setFormData(prev => ({ ...prev, submitted_by: s.id }))
-                          clearError("submitted_by")
+                          markTouched("submitted_by")
+                          // Check same-person rule immediately
+                          if (formData.prepared_by && s.id === formData.prepared_by) {
+                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                          } else {
+                            clearError("submitted_by")
+                          }
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{s.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{s.position}</p>
+                            <p className="text-xs text-muted-foreground">{s.position}</p>
                           </div>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {hasErr("submitted_by") && <p className="text-xs font-medium text-destructive/90">{fieldErrors.submitted_by}</p>}
-                  {subObj && !hasErr("submitted_by") && <p className="text-xs text-muted-foreground pl-1 truncate">{subObj.position}</p>}
+                  {hasErr("submitted_by") && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.submitted_by}
+                    </p>
+                  )}
+                  {subObj && !hasErr("submitted_by") && (
+                    <p className="text-xs text-muted-foreground pl-1 truncate">{subObj.position}</p>
+                  )}
                 </div>
               </div>
-            </SectionBlock>
+            </SectionCard>
 
+            {/* Bottom CTA */}
             {step === "editing" && (
-              <Button onClick={handlePreview} className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
-                <Eye className="h-4 w-4" /> Preview PDF
+              <Button
+                onClick={handlePreview}
+                className="w-full h-12 text-sm font-semibold gap-2 rounded-xl shadow-sm"
+              >
+                <Eye className="h-4 w-4" />
+                Preview PDF
                 {progress < 100 && (
-                  <span className="ml-auto text-xs opacity-55 font-normal tabular-nums">
-                    {filledRequired}/{requiredKeys.length} fields
+                  <span className="ml-auto text-xs opacity-50 font-normal tabular-nums">
+                    {filledRequired}/{requiredKeys.length} required
                   </span>
                 )}
               </Button>
             )}
+
             {step === "submitted" && (
-              <Button disabled variant="outline" className="w-full h-11 text-sm font-semibold gap-2 rounded-xl">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" /> Form Submitted
+              <Button disabled variant="outline" className="w-full h-12 text-sm font-semibold gap-2 rounded-xl">
+                <CheckCircle2 className="h-4 w-4 text-success" />
+                Form Submitted Successfully
               </Button>
             )}
           </div>
 
-          {/* ── PDF Preview Panel ── */}
+          {/* ── RIGHT: PDF Preview panel ──────────────────────────────────────── */}
           <div className="sticky top-6 space-y-3">
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/60">
+            <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
                 <div className="flex items-center gap-2">
                   <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">PDF Preview</span>
+                  <span className="text-sm font-semibold text-foreground">PDF Preview</span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-background border border-border">
+                <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-background border border-border">
                   <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                    step === "submitted" ? "bg-foreground" : step === "previewing" ? "bg-amber-500 animate-pulse" : "bg-muted-foreground/30"
+                    step === "submitted"   ? "bg-success"
+                    : step === "previewing" ? "bg-pending animate-pulse"
+                    :                        "bg-muted-foreground/30"
                   }`} />
                   <span className="text-xs text-muted-foreground">
-                    {step === "submitted" ? "Saved" : step === "previewing" ? "Review mode" : "Awaiting preview"}
+                    {step === "submitted"   ? "Saved"
+                    : step === "previewing" ? "Review mode"
+                    :                        "Awaiting input"}
                   </span>
                 </div>
               </div>
-              <div className="relative bg-muted/30" style={{ height: "780px" }}>
+
+              <div className="relative bg-muted/10" style={{ height: "760px" }}>
                 {step === "editing" && !generatingPreview && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 text-center px-10">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8">
                     <div className="relative">
-                      <div className="w-16 h-20 rounded-xl border-2 border-dashed border-border bg-background flex items-end justify-center pb-3">
-                        <div className="space-y-1.5 w-9">
-                          <div className="h-1 rounded-full bg-border" />
-                          <div className="h-1 rounded-full bg-border" />
-                          <div className="h-1 w-6 rounded-full bg-border" />
-                        </div>
+                      <div className="w-16 h-20 rounded-xl border-2 border-dashed border-border/60 bg-background flex flex-col items-center justify-end pb-3 gap-1.5 pt-4">
+                        <div className="h-1 w-8 rounded-full bg-border/70" />
+                        <div className="h-1 w-8 rounded-full bg-border/70" />
+                        <div className="h-1 w-5 rounded-full bg-border/70" />
                       </div>
-                      <div className="absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center">
-                        <FileText className="h-3 w-3 text-muted-foreground" />
+                      <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center">
+                        <FileText className="h-3 w-3 text-muted-foreground/60" />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <p className="text-sm font-semibold text-muted-foreground">No preview yet</p>
-                      <p className="text-sm text-muted-foreground/70 leading-relaxed max-w-[200px]">
-                        Complete the form and click <span className="font-medium text-foreground">Preview PDF</span> to review before submitting
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-semibold text-foreground">No preview yet</p>
+                      <p className="text-sm text-muted-foreground leading-relaxed max-w-50">
+                        Fill in the form on the left, then click{" "}
+                        <span className="font-semibold text-foreground">Preview PDF</span>{" "}
+                        to see a live preview here.
                       </p>
                     </div>
-                    <div className="w-full max-w-[140px] space-y-2">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{filledRequired} of {requiredKeys.length}</span>
-                        <span>{progress}%</span>
-                      </div>
-                      <div className="h-1 w-full rounded-full bg-border overflow-hidden">
-                        <div className="h-full rounded-full bg-foreground/50 transition-all duration-500" style={{ width: `${progress}%` }} />
-                      </div>
+                    <div className="w-full max-w-55">
+                      <ProgressBar value={progress} filled={filledRequired} total={requiredKeys.length} />
                     </div>
                   </div>
                 )}
+
                 {generatingPreview && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Generating preview…</p>
+                    <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">Generating preview…</p>
+                    <p className="text-xs text-muted-foreground/60">This usually takes a moment.</p>
                   </div>
                 )}
+
                 {previewUrl && !generatingPreview && (
-                  <iframe src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                    className="absolute inset-0 h-full w-full border-0" title="CAV PDF Preview" />
+                  <iframe
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                    className="absolute inset-0 h-full w-full border-0"
+                    title="CAV PDF Preview"
+                  />
                 )}
               </div>
             </div>
 
-            {/* ── Download & Print ── */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <Button
                 onClick={() => savedForm && generateCavPDF(savedForm)}
                 disabled={step !== "submitted" || generatingPreview}
                 variant="outline"
-                className="h-10 gap-2 rounded-xl text-sm"
+                className="h-10 gap-2 rounded-xl text-sm font-medium"
               >
-                <Download className="h-4 w-4" />
-                Download
+                <Download className="h-4 w-4" /> Download PDF
               </Button>
               <Button
                 onClick={handlePrint}
                 variant="outline"
                 disabled={step !== "submitted" || printing || generatingPreview || !previewUrl}
-                className="h-10 gap-2 rounded-xl text-sm"
+                className="h-10 gap-2 rounded-xl text-sm font-medium"
               >
                 {printing
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Printing…</>
-                  : <><Printer className="h-4 w-4" /> Print</>}
+                  : <><Printer className="h-4 w-4" /> Print</>
+                }
               </Button>
             </div>
+
+            {step === "submitted" && (
+              <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
+                <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  The form has been saved to the database. Use the buttons above to download a copy or send it to the printer.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Submit Dialog ── */}
+      {/* ══ SUBMIT CONFIRMATION DIALOG ═══════════════════════════════════════ */}
       <AlertDialog open={showSubmitDialog} onOpenChange={open => !submitting && setSubmitDialog(open)}>
         <AlertDialogContent className="max-w-md rounded-2xl">
           <AlertDialogHeader className="items-center text-center sm:text-center">
-            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-muted flex items-center justify-center">
-              <ShieldCheck className="h-7 w-7 text-foreground" />
+            <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-success/10 border border-success/20 flex items-center justify-center">
+              <ShieldCheck className="h-7 w-7 text-success" />
             </div>
-            <AlertDialogTitle className="text-base">Submit this CAV Form?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-bold">Ready to submit this form?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
-              This will permanently save the form for{" "}
+              This will permanently save the CAV form for{" "}
               <span className="font-semibold text-foreground">{formData.full_legal_name || "this student"}</span>{" "}
-              to the database. Make sure the PDF preview looks correct before proceeding.
+              to the database. Make sure the PDF preview looks correct before you continue.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="my-1 rounded-xl border border-border bg-muted divide-y divide-border overflow-hidden">
+          <div className="my-2 rounded-xl border border-border bg-muted/50 divide-y divide-border overflow-hidden">
             {[
               { label: "Student",     value: formData.full_legal_name },
               { label: "Control No.", value: formData.control_no },
@@ -756,63 +1417,103 @@ export default function CAV() {
               { label: "Prepared by", value: prepObj?.full_name },
               { label: "Status",      value: formData.is_graduated ? "Completed" : "Attended" },
             ].map(row => (
-              <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm text-muted-foreground shrink-0">{row.label}</span>
-                <span className="text-sm font-medium truncate max-w-[200px] text-right ml-4">
-                  {row.value || <span className="text-muted-foreground italic">—</span>}
+              <div key={row.label} className="flex items-center justify-between px-4 py-2.5 gap-4">
+                <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+                <span className="text-sm font-medium truncate text-right">
+                  {row.value || <span className="text-muted-foreground italic font-normal">—</span>}
                 </span>
               </div>
             ))}
           </div>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel disabled={submitting} className="flex-1 rounded-xl h-10 m-0 text-sm">Go Back & Check</AlertDialogCancel>
-            <AlertDialogAction variant="default"
+            <AlertDialogCancel disabled={submitting} className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Go Back &amp; Check
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="success"
               onClick={e => { e.preventDefault(); handleConfirmSubmit() }}
-              disabled={submitting} className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm">
+              disabled={submitting}
+              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+            >
               {submitting
                 ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting…</>
-                : <><CheckCircle2 className="h-3.5 w-3.5" /> Yes, Submit</>}
+                : <><CheckCircle2 className="h-3.5 w-3.5" /> Yes, Submit</>
+              }
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Discard & Back Dialog ── */}
+      {/* ══ DISCARD & LEAVE DIALOG ═══════════════════════════════════════════ */}
+      {/* This dialog is only shown by the browser popstate handler (back button). */}
+      {/* Navbar/link navigation shows the provider's own dialog instead.         */}
       <AlertDialog open={showBackDialog} onOpenChange={setBackDialog}>
         <AlertDialogContent className="max-w-sm rounded-2xl">
           <AlertDialogHeader className="items-center text-center sm:text-center">
-            <div className="mx-auto mb-1 h-14 w-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
               <TriangleAlert className="h-7 w-7 text-destructive" />
             </div>
-            <AlertDialogTitle className="text-base">Discard this form?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-bold">Leave without saving?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm leading-relaxed">
-              You have unsaved data. Leaving now will permanently discard everything you've entered.
+              You have unsaved changes. If you leave now, everything you've entered will be permanently lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">Keep Editing</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => navigate("/")}
-              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm">
-              <TriangleAlert className="h-3.5 w-3.5" /> Discard & Leave
+            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Keep Editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => { setBackDialog(false); navigate("/") }}
+              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+            >
+              <TriangleAlert className="h-3.5 w-3.5" /> Discard &amp; Leave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Toasts ── */}
+      {/* ══ RELOAD GUARD DIALOG ══════════════════════════════════════════════ */}
+      <AlertDialog open={showReloadDialog} onOpenChange={setReloadDialog}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+              <TriangleAlert className="h-7 w-7 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-base font-bold">Reload page?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              Reloading will discard everything you've entered. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Stay on Page
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => window.location.reload()}
+              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+            >
+              <TriangleAlert className="h-3.5 w-3.5" /> Reload Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ══ TOAST NOTIFICATIONS ══════════════════════════════════════════════ */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className="pointer-events-auto animate-in slide-in-from-bottom-3 fade-in duration-200">
             {t.type === "error" ? (
               <Alert variant="destructive" className="w-80 shadow-lg">
                 <TriangleAlert className="h-4 w-4" />
-                <AlertTitle className="text-sm">{t.title}</AlertTitle>
+                <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>
               </Alert>
             ) : (
-              <Alert className="w-80 shadow-lg border-border bg-muted text-foreground [&>svg]:text-foreground">
+              <Alert variant="success">
                 <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle className="text-sm">{t.title}</AlertTitle>
+                <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>
               </Alert>
             )}

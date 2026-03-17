@@ -2,43 +2,40 @@
 
 import type { Table } from "@tanstack/react-table"
 import { Button } from "@/components/animate-ui/components/buttons/button"
-import { Input } from "@/components/ui/input"
 import { DataTableFacetedFilter } from "./data-table-faceted-filter"
 import { DataTableViewOptions } from "./data-table-view-options"
-import { X } from "lucide-react"
+import { Search, X } from "lucide-react"
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>
 }
 
 const actionOptions = [
-  { label: "Created", value: "created" },
-  { label: "Updated", value: "updated" },
+  { label: "Created",  value: "created"  },
+  { label: "Updated",  value: "updated"  },
   { label: "Archived", value: "archived" },
-  { label: "Deleted", value: "deleted" },
+  { label: "Deleted",  value: "deleted"  },
 ]
 
-export function DataTableToolbar<TData>({
-  table,
-}: DataTableToolbarProps<TData>) {
-
-  const isFiltered = table.getState().columnFilters.length > 0
+export function DataTableToolbar<TData>({ table }: DataTableToolbarProps<TData>) {
+  const isFiltered =
+    table.getState().columnFilters.length > 0 ||
+    !!table.getState().globalFilter
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
       <div className="flex flex-1 items-center gap-2">
 
-        <Input
-          placeholder="Search audit no or user..."
-          value={
-            (table.getColumn("audit_no")?.getFilterValue() as string) ?? ""
-          }
-          onChange={(event) =>
-            table.setGlobalFilter(event.target.value)
-          }
-          className="h-9 w-50 lg:w-75"
-        />
+        {/* Search bar */}
+        <div className="group flex items-center gap-2 h-9 w-50 lg:w-75 rounded-md border border-input bg-background px-3 ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground/60 group-focus-within:text-foreground transition-colors" />
+          <input
+            placeholder="Search audit no..."
+            value={(table.getState().globalFilter as string) ?? ""}
+            onChange={(e) => table.setGlobalFilter(e.target.value)}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 min-w-0"
+          />
+        </div>
 
         {table.getColumn("action") && (
           <DataTableFacetedFilter
@@ -51,7 +48,10 @@ export function DataTableToolbar<TData>({
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => table.resetColumnFilters()}
+            onClick={() => {
+              table.resetColumnFilters()
+              table.setGlobalFilter("")
+            }}
             className="h-9 px-3"
           >
             Reset
@@ -62,7 +62,6 @@ export function DataTableToolbar<TData>({
       </div>
 
       <DataTableViewOptions table={table} />
-
     </div>
   )
 }

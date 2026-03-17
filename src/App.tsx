@@ -1,7 +1,3 @@
-// src/App.tsx  — only the changed shell shown; internals unchanged
-// Wrap <AppearanceProvider> with <CollapseProvider> so every route can
-// read `collapsed` / `px` from the context.
-
 import './App.css'
 import { useEffect } from 'react'
 import Home from './pages/home/homeData'
@@ -21,7 +17,8 @@ import SignatoriesPage from './pages/Signatories/signatory'
 import DocsPage from './pages/docs/docs'
 import Settings from './pages/settings/Settings'
 import { AppearanceProvider, resetAppearanceToDefaults } from './components/appearance-provider'
-import { CollapseProvider } from '@/context/collapse-provider'   // ← NEW
+import { CollapseProvider } from '@/context/collapse-provider'
+import { NavigationGuardProvider } from '@/context/navigation-guard-provider' 
 import { supabase } from '@/lib/supabase'
 import PDFFieldEditor from './components/pdf-editor'
 
@@ -62,8 +59,8 @@ function Layout() {
 
   return (
     <div className={
-      isFullscreenTool 
-        ? "flex flex-col h-screen overflow-hidden" 
+      isFullscreenTool
+        ? "flex flex-col h-screen overflow-hidden"
         : "flex flex-col min-h-screen w-full"
     }>
       {!isAuthPage && <Navbar />}
@@ -124,12 +121,12 @@ function App() {
   return (
     <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
       <AppearanceProvider>
-        {/* CollapseProvider must be inside BrowserRouter so routes can consume it,
-            but it doesn't need router itself — wrap Layout inside BrowserRouter below */}
         <BrowserRouter>
-          <CollapseProvider>   {/* ← NEW */}
-            <Layout />
-          </CollapseProvider>  {/* ← NEW */}
+          <CollapseProvider>
+            <NavigationGuardProvider>  
+              <Layout />
+            </NavigationGuardProvider>  
+          </CollapseProvider>
         </BrowserRouter>
       </AppearanceProvider>
     </ThemeProvider>

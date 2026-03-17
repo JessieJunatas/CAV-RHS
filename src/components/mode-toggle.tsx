@@ -10,6 +10,7 @@ import { useTheme } from '@/context/use-theme';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import type { Theme } from '@/context/theme-context';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 type AnimationVariant = 'circle' | 'circle-blur' | 'gif' | 'polygon';
 type StartPosition = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -124,7 +125,6 @@ export const ModeToggle = ({
       setTimeout(() => document.getElementById(styleId)?.remove(), 3000);
     }
 
-    // Apply theme immediately — no await blocking this
     if ('startViewTransition' in document) {
       const doc = document as Document & {
         startViewTransition: (callback: () => void) => { finished: Promise<void> };
@@ -134,7 +134,6 @@ export const ModeToggle = ({
       setTheme(newTheme);
     }
 
-    // Fire-and-forget — runs in background after transition starts
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase
@@ -147,36 +146,47 @@ export const ModeToggle = ({
   }, [setTheme, variant, start, url, theme]);
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger
-        className={cn(
-          'relative overflow-hidden transition-all rounded-full',
-          'inline-flex items-center justify-center',
-          'text-muted-foreground hover:text-foreground hover:bg-accent',
-          showLabel ? 'h-9 px-4 gap-2' : 'h-9 w-9',
-          className
-        )}
-      >
-        <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-        <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-        {showLabel && (
-          <span className="text-sm">
-            {theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'}
-          </span>
-        )}
-        <span className="sr-only">Toggle theme</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('light'); }}>
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('dark'); }}>
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('system'); }}>
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <TooltipProvider delayDuration={300}>
+      <Tooltip open={isOpen ? false : undefined}>
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger
+              className={cn(
+                'relative overflow-hidden transition-all rounded-full',
+                'inline-flex items-center justify-center',
+                'text-muted-foreground hover:text-foreground hover:bg-accent',
+                showLabel ? 'h-9 px-4 gap-2' : 'h-9 w-9',
+                className
+              )}
+            >
+              <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+              <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+              {showLabel && (
+                <span className="text-sm">
+                  {theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'}
+                </span>
+              )}
+              <span className="sr-only">Toggle theme</span>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('light'); }}>
+              Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('dark'); }}>
+              Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleThemeChange('system'); }}>
+              System
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <TooltipContent side="bottom" className="text-xs">
+          Theme
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
