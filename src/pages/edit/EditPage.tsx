@@ -32,6 +32,7 @@ import {
   ChevronDown, Pen, Printer, RotateCcw, X,
 } from "lucide-react"
 import { useCollapse } from "@/context/collapse-provider"
+import { useNavigationGuard } from "@/context/navigation-guard-provider"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,9 +214,10 @@ function DirtyInput({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function EditPage() {
-  const { id } = useParams()
+  const { id }  = useParams()
   const navigate = useNavigate()
-  const { px } = useCollapse()
+  const { px }   = useCollapse()
+  const { registerGuard, guardedNavigate } = useNavigationGuard()
 
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null)
   const [generatingPreview, setGenerating]  = useState(false)
@@ -228,20 +230,37 @@ export default function EditPage() {
   const [submittedOptions, setSubmitted]    = useState<any[]>([])
   const [fieldErrors, setFieldErrors]       = useState<Partial<Record<keyof FormData, string>>>({})
   const [errorDismissed, setErrorDismissed] = useState(false)
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false)
   const [toasts, setToasts]                 = useState<Toast[]>([])
   const [showBackDialog, setBackDialog]     = useState(false)
+  const [showReloadDialog, setReloadDialog] = useState(false)
   const [printing, setPrinting]             = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── Navigation guard ref — always current, no stale closure ───────────────
+  const guardRef = useRef({ isDirty: false })
+
   const isDirty = formData && originalData
     ? JSON.stringify(formData) !== JSON.stringify(originalData)
     : false
+
   const isK12 = formData?.form_type === 2
+
+  // Keep ref in sync
+  useEffect(() => {
+    guardRef.current = { isDirty: !!isDirty }
+  }, [isDirty])
+
+  // Register with the global provider — covers navbar, all <Link>s, everything
+  useEffect(() => {
+    const unregister = registerGuard(() => guardRef.current.isDirty)
+    return unregister
+  }, [registerGuard])
 
   useEffect(() => { setErrorDismissed(false) }, [fieldErrors])
 
-  // ── Load signatories ──
+  // ── Load signatories ──────────────────────────────────────────────────────
   useEffect(() => {
     supabase.from("signatories").select("id, full_name, position").eq("role_type", "assistant_registrar")
       .then(({ data }) => setPrepared(data || []))
@@ -249,7 +268,7 @@ export default function EditPage() {
       .then(({ data }) => setSubmitted(data || []))
   }, [])
 
-  // ── Load record ──
+  // ── Load record ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return
     supabase.from("cav_forms").select("*").eq("id", id).single().then(({ data, error }) => {
@@ -258,7 +277,7 @@ export default function EditPage() {
     })
   }, [id])
 
-  // ── Debounced live preview ──
+  // ── Debounced live preview ────────────────────────────────────────────────
   const regeneratePreview = useCallback((data: FormData, prepared: any[], submitted: any[]) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
@@ -277,28 +296,49 @@ export default function EditPage() {
     regeneratePreview(formData, preparedOptions, submittedOptions)
   }, [formData, preparedOptions, submittedOptions, regeneratePreview])
 
-  // ── Navigation guards ──
+  // ── Block tab-close / toolbar refresh ────────────────────────────────────
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = "" }
+      if (guardRef.current.isDirty) { e.preventDefault(); e.returnValue = "" }
     }
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [isDirty])
+  }, [])
 
+  // ── Block browser back button ─────────────────────────────────────────────
   useEffect(() => {
     window.history.pushState(null, "", window.location.href)
     const handlePopState = () => {
-      if (isDirty) {
+      if (guardRef.current.isDirty) {
         window.history.pushState(null, "", window.location.href)
         setBackDialog(true)
+      } else {
+        navigate("/")
       }
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [isDirty])
+  }, [navigate])
 
-  // ── Helpers ──
+  // ── Intercept keyboard reload (F5, Ctrl+R, Cmd+R) ────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!guardRef.current.isDirty) return
+      const isReload =
+        e.key === "F5" ||
+        (e.ctrlKey && e.key === "r") ||
+        (e.ctrlKey && e.shiftKey && e.key === "R") ||
+        (e.metaKey && e.key === "r")
+      if (isReload) {
+        e.preventDefault()
+        setReloadDialog(true)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const pushToast = (type: Toast["type"], title: string, message: string) => {
     const id = Date.now()
     setToasts(p => [...p, { id, type, title, message }])
@@ -330,7 +370,7 @@ export default function EditPage() {
 
   const countChanged = (...fields: string[]) => fields.filter(ch).length
 
-  // ── Validation ──
+  // ── Validation ────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     if (!formData) return false
     const errors: Partial<Record<keyof FormData, string>> = {}
@@ -349,9 +389,10 @@ export default function EditPage() {
     return count === 0
   }
 
-  // ── Save ──
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleUpdate = async () => {
     if (!id || !formData || !originalData) return
+    setHasAttemptedSave(true)
     if (!validate()) return
 
     setSaving(true)
@@ -375,6 +416,8 @@ export default function EditPage() {
     setOriginalData(formData)
     setSaving(false)
     setSaved(true)
+    // Reset so the banner doesn't persist after a successful save
+    setHasAttemptedSave(false)
     pushToast("success", "Saved!", `Changes to ${formData.full_legal_name}'s form were saved.`)
   }
 
@@ -415,16 +458,18 @@ export default function EditPage() {
     }
   }
 
+  // In-app back — goes through the global guard so navbar clicks also work
   const handleBack = () => {
-    if (isDirty) { setBackDialog(true) } else { navigate("/") }
+    guardedNavigate("/")
   }
 
-  // ── Computed ──
+  // ── Computed ──────────────────────────────────────────────────────────────
   const prepObj    = preparedOptions.find(p => p.id === formData?.prepared_by)
   const subObj     = submittedOptions.find(s => s.id === formData?.submitted_by)
   const hasErr     = (key: keyof FormData) => !!fieldErrors[key]
   const errorCount = Object.keys(fieldErrors).length
-  const showErrorBanner = errorCount > 0 && !errorDismissed
+  // Only show the banner after the user has attempted to save at least once
+  const showErrorBanner = hasAttemptedSave && errorCount > 0 && !errorDismissed
 
   const enrolledActive  = !!(formData?.enrolled_grade || formData?.enrolled_sy)
   const completedActive = !!(formData?.status_completed_grade || formData?.status_completed_sy)
@@ -476,7 +521,6 @@ export default function EditPage() {
             </div>
           </div>
 
-          {/* Header actions */}
           <div className="flex items-center gap-2.5">
             {isDirty && !saved && (
               <>
@@ -486,7 +530,12 @@ export default function EditPage() {
                 </div>
                 <Button
                   variant="ghost" size="sm"
-                  onClick={() => { setFormData(originalData); setSaved(false); setFieldErrors({}) }}
+                  onClick={() => {
+                    setFormData(originalData)
+                    setSaved(false)
+                    setFieldErrors({})
+                    setHasAttemptedSave(false)
+                  }}
                   className="h-8 gap-1.5 text-xs text-muted-foreground rounded-lg"
                 >
                   <RotateCcw className="h-3 w-3" /> Discard
@@ -514,9 +563,7 @@ export default function EditPage() {
           </div>
         </div>
 
-        {/* ══ UNSAVED CHANGES BANNER ═══════════════════════════════════════════
-            Simplified: indicator-only strip. The header button is the sole save action.
-        ════════════════════════════════════════════════════════════════════════ */}
+        {/* ══ UNSAVED CHANGES BANNER ═══════════════════════════════════════════ */}
         {isDirty && !saved && (
           <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-amber-400/30 bg-amber-50/60 dark:bg-amber-900/10 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-2.5">
@@ -571,7 +618,7 @@ export default function EditPage() {
         <div className="grid grid-cols-[1fr_490px] gap-6 items-start">
           <div className="space-y-5">
 
-            {/* ── Student Information ── */}
+            {/* ── Student Information ───────────────────────────────────────── */}
             <SectionCard
               title="Student Information"
               icon={<User className="h-4 w-4" />}
@@ -667,7 +714,7 @@ export default function EditPage() {
               </div>
             </SectionCard>
 
-            {/* ── Dates ── */}
+            {/* ── Dates ─────────────────────────────────────────────────────── */}
             <SectionCard
               title="Important Dates"
               icon={<Calendar className="h-4 w-4" />}
@@ -739,7 +786,7 @@ export default function EditPage() {
               </div>
             </SectionCard>
 
-            {/* ── Student Status ── */}
+            {/* ── Student Status ────────────────────────────────────────────── */}
             <SectionCard
               title="Student Status"
               subtitle="Optional — entering values will auto-fill and check the corresponding box in the PDF."
@@ -749,7 +796,6 @@ export default function EditPage() {
                 "status_completed_grade", "status_completed_sy", "status_graduated_sy"
               )}
             >
-              {/* Completion Status toggle */}
               <div className={`mb-5 rounded-xl border border-border bg-muted/20 p-4 ${ch("is_graduated") ? "ring-1 ring-amber-400/40" : ""}`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -863,7 +909,7 @@ export default function EditPage() {
               </div>
             </SectionCard>
 
-            {/* ── Signatories ── */}
+            {/* ── Signatories ───────────────────────────────────────────────── */}
             <SectionCard
               title="Signatories"
               subtitle="Select the staff members who will sign and appear on the CAV form."
@@ -987,7 +1033,6 @@ export default function EditPage() {
               </div>
             </SectionCard>
 
-            {/* ── Bottom spacer — no save button here anymore ── */}
             <div className="h-2" />
           </div>
 
@@ -1001,11 +1046,9 @@ export default function EditPage() {
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-background border border-border">
                   <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                    generatingPreview
-                      ? "bg-pending animate-pulse"
-                      : isDirty
-                      ? "bg-amber-500"
-                      : "bg-success"
+                    generatingPreview ? "bg-pending animate-pulse"
+                    : isDirty ? "bg-amber-500"
+                    : "bg-success"
                   }`} />
                   <span className="text-xs text-muted-foreground">
                     {generatingPreview ? "Updating…" : isDirty ? "Unsaved" : "Synced"}
@@ -1052,7 +1095,6 @@ export default function EditPage() {
               </Button>
             </div>
 
-            {/* Sync note */}
             {isDirty && !generatingPreview && (
               <div className="flex items-start gap-2 rounded-xl border border-amber-400/25 bg-amber-50/40 dark:bg-amber-900/10 px-4 py-3">
                 <CircleDot className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
@@ -1081,10 +1123,37 @@ export default function EditPage() {
             <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">Keep Editing</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => navigate("/")}
+              onClick={() => { setBackDialog(false); navigate("/") }}
               className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
             >
               <TriangleAlert className="h-3.5 w-3.5" /> Discard &amp; Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ══ RELOAD GUARD DIALOG ══════════════════════════════════════════════ */}
+      <AlertDialog open={showReloadDialog} onOpenChange={setReloadDialog}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+              <TriangleAlert className="h-7 w-7 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-base font-bold">Reload page?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              Reloading will discard all unsaved edits. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Stay on Page
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => window.location.reload()}
+              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+            >
+              <TriangleAlert className="h-3.5 w-3.5" /> Reload Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1135,7 +1204,7 @@ function LoadingSkeleton() {
           <div className="space-y-5">
             {[4, 3, 3, 2].map((cols, i) => (
               <div key={i} className="rounded-2xl border border-border overflow-hidden">
-                <div className="h-[60px] bg-muted/30 border-b border-border" />
+                <div className="h-15 bg-muted/30 border-b border-border" />
                 <div className="p-6 grid grid-cols-2 gap-5">
                   {Array.from({ length: cols }).map((_, j) => (
                     <div key={j} className={`space-y-2 ${j === 0 && i === 0 ? "col-span-2" : ""}`}>
@@ -1147,7 +1216,7 @@ function LoadingSkeleton() {
               </div>
             ))}
           </div>
-          <Skeleton className="h-[900px] rounded-2xl" />
+          <Skeleton className="h-225 rounded-2xl" />
         </div>
       </div>
     </div>

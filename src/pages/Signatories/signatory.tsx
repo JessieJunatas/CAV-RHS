@@ -44,6 +44,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCollapse } from "@/context/collapse-provider"
+import { useNavigationGuard } from "@/context/navigation-guard-provider"
 
 const ROLE_OPTIONS = [
   { value: "assistant_registrar", label: "Assistant Registrar", sublabel: "Prepared By" },
@@ -158,7 +159,7 @@ function SignatoryForm({
           Position / Title
         </label>
         <Input
-          placeholder="e.g. Registrar"
+          placeholder="e.g. Registrar II"
           value={position}
           onChange={(e) => { setPosition(e.target.value); setErrors((p) => ({ ...p, position: undefined })) }}
           className={cn(
@@ -424,6 +425,8 @@ function DeleteConfirmDialog({
 
 export default function SignatoriesPage() {
   const { px } = useCollapse()
+  const { registerGuard } = useNavigationGuard()
+
   const [signatories, setSignatories] = useState<Signatory[]>([])
   const [loading, setLoading]         = useState(false)
   const [submitting, setSubmitting]   = useState(false)
@@ -442,8 +445,45 @@ export default function SignatoriesPage() {
   const [confirmDeleteId, setConfirmDeleteId]         = useState<string | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  // ── Stable incrementing ID — avoids calling impure Date.now() during render ──
   const toastIdRef = useRef(0)
+
+  // ── Navigation guard ──────────────────────────────────────────────────────
+  // Only block when the sheet is open AND the user has typed something.
+  // All DB mutations (add/edit/deactivate/delete) commit immediately, so
+  // the only "unsaved" state is an open sheet with input that hasn't been saved.
+  const guardRef = useRef({ panelOpen: false, fullName: "", position: "" })
+
+  useEffect(() => {
+    guardRef.current = { panelOpen, fullName, position }
+  }, [panelOpen, fullName, position])
+
+  useEffect(() => {
+    const unregister = registerGuard(() => {
+      const { panelOpen: open, fullName: fn, position: pos } = guardRef.current
+      return open && (fn.trim().length > 0 || pos.trim().length > 0)
+    })
+    return unregister
+  }, [registerGuard])
+
+  // Block browser back button when sheet has unsaved input
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href)
+    const handlePopState = () => {
+      const { panelOpen: open, fullName: fn, position: pos } = guardRef.current
+      const isDirty = open && (fn.trim().length > 0 || pos.trim().length > 0)
+      if (isDirty) {
+        window.history.pushState(null, "", window.location.href)
+        // Close the sheet instead of showing a full leave dialog —
+        // navigating away from the sheet is less destructive than
+        // navigating away from a multi-field form.
+        handleClosePanel()
+      }
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   const pushToast = useCallback((title: string, message: string, type: Toast["type"] = "success") => {
     const id = ++toastIdRef.current
@@ -451,7 +491,6 @@ export default function SignatoriesPage() {
     setTimeout(() => setToasts((p) => p.filter((t) => t.id !== id)), 4000)
   }, [])
 
-  // Called manually after mutations (add, edit, deactivate, delete, reactivate)
   const fetchSignatories = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -462,7 +501,6 @@ export default function SignatoriesPage() {
     setLoading(false)
   }
 
-  // Initial load — setState calls are in the .then() callback, not the effect body
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -489,6 +527,8 @@ export default function SignatoriesPage() {
     return matchesSearch && matchesFilter
   })
 
+  // ── Validation — presence only, no format rules ───────────────────────────
+
   const validate = () => {
     const e: typeof errors = {}
     if (!fullName.trim()) e.fullName = "Full name is required."
@@ -497,6 +537,8 @@ export default function SignatoriesPage() {
     setErrors(e)
     return Object.keys(e).length === 0
   }
+
+  // ── CRUD ──────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -580,6 +622,8 @@ export default function SignatoriesPage() {
       setEditingId(null); setFullName(""); setPosition(""); setRoleType("assistant_registrar"); setErrors({})
     }, 300)
   }
+
+  // ── Computed ──────────────────────────────────────────────────────────────
 
   const activeCount      = signatories.filter((s) => s.is_active).length
   const inactiveCount    = signatories.filter((s) => !s.is_active).length
@@ -838,7 +882,7 @@ export default function SignatoriesPage() {
 
       {/* ══ TOAST NOTIFICATIONS — portalled to document.body ═════════════════ */}
       {createPortal(
-        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none">
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto animate-in slide-in-from-bottom-3 fade-in duration-200">
               {t.type === "error" ? (

@@ -530,7 +530,7 @@ function ArchivePage() {
 
       {/* ══ TOAST NOTIFICATIONS — portalled to document.body ═════════════════ */}
       {createPortal(
-        <div className="fixed bottom-6 right-6 flex flex-col gap-2.5 pointer-events-none">
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
           {toasts.map((t) => (
             <div key={t.id} className="pointer-events-auto animate-in slide-in-from-bottom-3 fade-in duration-200">
               {t.type === "error" ? (

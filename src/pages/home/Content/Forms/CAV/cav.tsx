@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import { useNavigationGuard } from "@/context/navigation-guard-provider"
 import { supabase } from "@/lib/supabase"
 import { createForm } from "../../CRUD"
 import { generateCavPDF } from "@/utils/generateCAVpdf"
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useCollapse } from "@/context/collapse-provider"
 import { logAudit } from "@/utils/audit-log"
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type CavFormData = {
   full_legal_name: string
@@ -67,27 +70,114 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
   is_graduated: "Completion Status",
 }
 
+// Fields that are NOT required for submit (but may still have format rules)
 const OPTIONAL: (keyof CavFormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed",
   "status_completed_grade", "status_completed_sy", "status_graduated_sy", "is_graduated",
 ]
 
 const STEPS: { key: Step; label: string; desc: string }[] = [
-  { key: "editing",    label: "Fill in Details", desc: "Enter student info"    },
-  { key: "previewing", label: "Review PDF",       desc: "Check before saving"  },
-  { key: "submitted",  label: "Done",             desc: "Saved to database"    },
+  { key: "editing",    label: "Fill in Details", desc: "Enter student info"   },
+  { key: "previewing", label: "Review PDF",       desc: "Check before saving" },
+  { key: "submitted",  label: "Done",             desc: "Saved to database"   },
 ]
+
+// School-year format: four digits, dash, four digits
+const SY_REGEX = /^\d{4}-\d{4}$/
+
+// ─── Validation rules ─────────────────────────────────────────────────────────
+// Each rule receives the raw string value and the full form state.
+// Return a string error message, or null if valid.
+
+type RuleFn = (val: string, data: CavFormData) => string | null
+
+const RULES: Partial<Record<keyof CavFormData, RuleFn>> = {
+  full_legal_name: (v) => {
+    const t = v.trim()
+    if (!t) return "Complete name is required"
+    if (t.length < 2) return "Name must be at least 2 characters"
+    if (t.length > 120) return "Name must be under 120 characters"
+    if (/\d/.test(t)) return "Name should not contain numbers"
+    return null
+  },
+
+  control_no: (v) => {
+    const t = v.trim()
+    if (!t || t === "RHS-") return "Control number is required"
+    if (t.length < 6) return "Control number is too short"
+    if (t.length > 30) return "Control number must be under 30 characters"
+    return null
+  },
+
+  school_year_completed: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    const [start, end] = v.trim().split("-").map(Number)
+    if (end !== start + 1) return "End year must be exactly one year after start"
+    return null
+  },
+
+  school_year_graduated: (v) => {
+    if (!v.trim()) return "School year graduated is required"
+    return null
+  },
+
+  date_of_application: (v) => {
+    if (!v.trim()) return "Date of application is required"
+    return null
+  },
+
+  date_issued: (v, d) => {
+    if (!v.trim()) return "Date issued is required"
+    if (d.date_of_application && v < d.date_of_application)
+      return "Date issued cannot be before date of application"
+    return null
+  },
+
+  date_of_transmission: (v, d) => {
+    if (!v.trim()) return "Date of transmission is required"
+    if (d.date_issued && v < d.date_issued)
+      return "Transmission date cannot be before date issued"
+    return null
+  },
+
+  enrolled_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  status_completed_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  status_graduated_sy: (v) => {
+    if (!v.trim()) return null // optional
+    if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
+    return null
+  },
+
+  prepared_by: (v) => (!v.trim() ? "Prepared By is required" : null),
+  submitted_by: (v) => (!v.trim() ? "Submitted By is required" : null),
+}
+
+// Run a single field's rule against current formData
+function validateField(key: keyof CavFormData, data: CavFormData): string | null {
+  const rule = RULES[key]
+  if (!rule) return null
+  const val = typeof data[key] === "string" ? (data[key] as string) : ""
+  return rule(val, data)
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionCard({
   title, subtitle, icon, children, dimmed,
 }: {
-  title: string
-  subtitle?: string
-  icon: React.ReactNode
-  children: React.ReactNode
-  dimmed?: boolean
+  title: string; subtitle?: string; icon: React.ReactNode
+  children: React.ReactNode; dimmed?: boolean
 }) {
   return (
     <div className={`rounded-2xl border border-border bg-card overflow-hidden transition-opacity duration-300 ${dimmed ? "opacity-40 pointer-events-none select-none" : ""}`}>
@@ -108,14 +198,9 @@ function SectionCard({
 function Field({
   label, hint, icon, error, errorMsg, filled, optional, children,
 }: {
-  label: string
-  hint?: string
-  icon?: React.ReactNode
-  error?: boolean
-  errorMsg?: string
-  filled?: boolean
-  optional?: boolean
-  children: React.ReactNode
+  label: string; hint?: string; icon?: React.ReactNode
+  error?: boolean; errorMsg?: string; filled?: boolean
+  optional?: boolean; children: React.ReactNode
 }) {
   return (
     <div className="space-y-2">
@@ -244,15 +329,18 @@ function ProgressBar({ value, filled, total }: { value: number; filled: number; 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CAV() {
-  const navigate = useNavigate()
-  const { px } = useCollapse()
+  const navigate  = useNavigate()
+  const { px }    = useCollapse()
+  const { registerGuard, guardedNavigate } = useNavigationGuard()
 
+  // ── State ──────────────────────────────────────────────────────────────────
   const [step, setStep]                     = useState<Step>("editing")
   const [submitting, setSubmitting]         = useState(false)
   const [generatingPreview, setGenerating]  = useState(false)
   const [printing, setPrinting]             = useState(false)
   const [savedForm, setSavedForm]           = useState<(CavFormData & { id: string }) | null>(null)
   const [fieldErrors, setFieldErrors]       = useState<Partial<Record<keyof CavFormData, string>>>({})
+  const [touchedFields, setTouchedFields]   = useState<Set<keyof CavFormData>>(new Set())
   const [formData, setFormData]             = useState<CavFormData>(EMPTY)
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null)
   const [toasts, setToasts]                 = useState<Toast[]>([])
@@ -260,34 +348,85 @@ export default function CAV() {
   const [submittedOptions, setSubmitted]    = useState<any[]>([])
   const [showSubmitDialog, setSubmitDialog] = useState(false)
   const [showBackDialog, setBackDialog]     = useState(false)
+  const [showReloadDialog, setReloadDialog] = useState(false)
   const [errorDismissed, setErrorDismissed] = useState(false)
 
-  const isDirty = step !== "submitted" && Object.values(formData).some(v =>
-    typeof v === "boolean" ? v : !!(v as string)?.trim()
-  )
+  // ── Navigation guard ref ───────────────────────────────────────────────────
+  const guardRef = useRef({ step: "editing" as Step, isDirty: false })
 
+  // ── Derived: dirty ─────────────────────────────────────────────────────────
+  const isDirty =
+    step === "previewing" ||
+    (step === "editing" &&
+      Object.values(formData).some(v =>
+        typeof v === "boolean" ? v : !!(v as string)?.trim()
+      ))
+  useEffect(() => {
+    guardRef.current = { step, isDirty }
+  }, [step, isDirty])
+  useEffect(() => {
+    const unregister = registerGuard(() => {
+      const { isDirty: dirty, step: s } = guardRef.current
+      return s !== "submitted" && dirty
+    })
+    return unregister
+  }, [registerGuard])
+
+  // ── Effects ────────────────────────────────────────────────────────────────
+
+  // Dismiss the error banner whenever errors change
   useEffect(() => { setErrorDismissed(false) }, [fieldErrors])
 
+  // Block browser tab-close / refresh when dirty OR on submitted step
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = "" }
+      if (guardRef.current.isDirty || guardRef.current.step === "submitted") {
+        e.preventDefault()
+        e.returnValue = ""
+      }
     }
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [isDirty])
+  }, []) // registered once; reads live values from ref
 
+  // Block browser back button — stale-closure-safe via ref
   useEffect(() => {
     window.history.pushState(null, "", window.location.href)
     const handlePopState = () => {
-      if (isDirty) {
+      const { isDirty: dirty, step: s } = guardRef.current
+      if (s === "submitted") { navigate("/"); return }
+      if (dirty) {
         window.history.pushState(null, "", window.location.href)
         setBackDialog(true)
+        return
       }
+      navigate("/")
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [isDirty])
+  }, [navigate])
 
+  // Intercept keyboard reload shortcuts (F5, Ctrl+R, Cmd+R)
+  // and replace the native browser dialog with our shadcn one.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const { isDirty: dirty, step: s } = guardRef.current
+      if (!(dirty || s === "submitted")) return
+      const isReload =
+        e.key === "F5" ||
+        (e.ctrlKey && e.key === "r") ||
+        (e.ctrlKey && e.shiftKey && e.key === "R") ||
+        (e.metaKey && e.key === "r")
+      if (isReload) {
+        e.preventDefault()
+        setReloadDialog(true)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // Load signatories
   useEffect(() => {
     supabase.from("signatories").select("id, full_name, position").eq("role_type", "assistant_registrar")
       .then(({ data }) => setPrepared(data || []))
@@ -295,7 +434,7 @@ export default function CAV() {
       .then(({ data }) => setSubmitted(data || []))
   }, [])
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const pushToast = (type: Toast["type"], title: string, message: string) => {
     const id = Date.now()
@@ -306,17 +445,71 @@ export default function CAV() {
   const clearError = (key: keyof CavFormData) =>
     setFieldErrors(p => { const n = { ...p }; delete n[key]; return n })
 
+  const markTouched = (key: keyof CavFormData) =>
+    setTouchedFields(p => new Set(p).add(key))
+
+  // Re-validate a cross-field pair whenever one side changes
+  const revalidatePair = (
+    updated: CavFormData,
+    keys: (keyof CavFormData)[],
+  ) => {
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      for (const k of keys) {
+        // Only show the error if the field has been touched
+        if (!touchedFields.has(k) && !prev[k]) continue
+        const err = validateField(k, updated)
+        if (err) next[k] = err
+        else delete next[k]
+      }
+      return next
+    })
+  }
+
+  // ── Change handlers ────────────────────────────────────────────────────────
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    clearError(e.target.name as keyof CavFormData)
-    setFormData(p => ({ ...p, [e.target.name]: e.target.value }))
+    const key = e.target.name as keyof CavFormData
+    const updated = { ...formData, [key]: e.target.value }
+    setFormData(updated)
+
+    // If this field has been touched (blurred before), validate live
+    if (touchedFields.has(key)) {
+      const err = validateField(key, updated)
+      if (err) setFieldErrors(p => ({ ...p, [key]: err }))
+      else clearError(key)
+    }
+
+    // Always re-validate cross-field date relationships live
+    if (key === "date_of_application") revalidatePair(updated, ["date_issued"])
+    if (key === "date_issued")         revalidatePair(updated, ["date_of_transmission"])
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const key = e.target.name as keyof CavFormData
+    markTouched(key)
+    const err = validateField(key, formData)
+    if (err) setFieldErrors(p => ({ ...p, [key]: err }))
+    else clearError(key)
   }
 
   const handleDate = (name: keyof CavFormData, val: string) => {
     clearError(name)
-    setFormData(p => ({ ...p, [name]: val }))
+    const updated = { ...formData, [name]: val }
+    setFormData(updated)
+    markTouched(name)
+
+    // Validate the changed field itself
+    const err = validateField(name, updated)
+    if (err) setFieldErrors(p => ({ ...p, [name]: err }))
+
+    // Re-validate cross-field date pairs
+    if (name === "date_of_application") revalidatePair(updated, ["date_issued"])
+    if (name === "date_issued")         revalidatePair(updated, ["date_issued", "date_of_transmission"])
+    if (name === "date_of_transmission") revalidatePair(updated, ["date_of_transmission"])
   }
 
-  // ─── Computed ────────────────────────────────────────────────────────────────
+  // ── Computed ───────────────────────────────────────────────────────────────
 
   const requiredKeys   = (Object.keys(EMPTY) as (keyof CavFormData)[]).filter(k => !OPTIONAL.includes(k))
   const filledRequired = requiredKeys.filter(k => !!(formData[k] as string)?.trim()).length
@@ -346,22 +539,72 @@ export default function CAV() {
   const errorCount = Object.keys(fieldErrors).length
   const showErrorAlert = errorCount > 0 && step === "editing" && !errorDismissed
 
-  // ─── Actions ─────────────────────────────────────────────────────────────────
+  // ── Full form validation (runs on Preview PDF click) ──────────────────────
 
   const validate = (): boolean => {
     const errors: Partial<Record<keyof CavFormData, string>> = {}
+
+    // 1. Required field presence + their format rules
     for (const key of requiredKeys) {
-      if (!(formData[key] as string)?.trim()) errors[key] = `${FIELD_LABELS[key]} is required`
+      const val = formData[key]
+      const empty = typeof val === "boolean" ? false : !(val as string)?.trim()
+      if (empty) {
+        errors[key] = `${FIELD_LABELS[key]} is required`
+      } else {
+        const ruleErr = validateField(key, formData)
+        if (ruleErr) errors[key] = ruleErr
+      }
     }
+
+    // 2. Optional fields — only validate format if they have a value
+    const optionalFormatKeys: (keyof CavFormData)[] = [
+      "school_year_completed", "enrolled_sy",
+      "status_completed_sy", "status_graduated_sy",
+    ]
+    for (const key of optionalFormatKeys) {
+      if ((formData[key] as string)?.trim()) {
+        const ruleErr = validateField(key, formData)
+        if (ruleErr) errors[key] = ruleErr
+      }
+    }
+
+    // 3. At least one student status row must be filled
+    const hasAnyStatus =
+      formData.enrolled_grade?.trim() || formData.enrolled_sy?.trim() ||
+      formData.status_completed_grade?.trim() || formData.status_completed_sy?.trim() ||
+      formData.status_graduated_sy?.trim()
+    if (!hasAnyStatus) {
+      errors["enrolled_grade"] = "At least one status row must be filled (enrolled, completed, or graduated)"
+    }
+
+    // 4. Prepared By ≠ Submitted By
+    if (
+      formData.prepared_by &&
+      formData.submitted_by &&
+      formData.prepared_by === formData.submitted_by
+    ) {
+      errors["submitted_by"] = "Submitted By must be a different person from Prepared By"
+    }
+
+    // Mark all fields as touched so per-field errors show going forward
+    setTouchedFields(new Set(Object.keys(EMPTY) as (keyof CavFormData)[]))
     setFieldErrors(errors)
+
     const count = Object.keys(errors).length
     if (count > 0) {
-      pushToast("error", "Some fields are missing", `Please fill in ${count} required field${count > 1 ? "s" : ""} before previewing.`)
+      pushToast(
+        "error",
+        "Some fields need attention",
+        `Fix ${count} issue${count > 1 ? "s" : ""} before previewing.`,
+      )
       const firstKey = Object.keys(errors)[0]
-      document.getElementsByName(firstKey)[0]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      document.getElementsByName(firstKey)[0]
+        ?.scrollIntoView({ behavior: "smooth", block: "center" })
     }
     return count === 0
   }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
 
   const handlePreview = async () => {
     if (!validate()) return
@@ -383,6 +626,8 @@ export default function CAV() {
   const handleEditFromPreview = () => { setStep("editing"); setPreviewUrl(null) }
 
   const handleConfirmSubmit = async () => {
+    // Guard against double-submit (in case button re-enable race condition)
+    if (submitting) return
     try {
       setSubmitting(true)
       const { data: { user } } = await supabase.auth.getUser()
@@ -393,7 +638,11 @@ export default function CAV() {
       })
       if (!created?.id) throw new Error("Form creation failed")
       try {
-        await logAudit({ action: "created", event: `Created CAV JHS form for ${formData.full_legal_name}`, recordId: created.id, newData: formData })
+        await logAudit({
+          action: "created",
+          event: `Created CAV JHS form for ${formData.full_legal_name}`,
+          recordId: created.id, newData: formData,
+        })
       } catch (e) { console.error("Audit log failed:", e) }
       const saved = { ...formData, id: created.id }
       setSavedForm(saved)
@@ -443,13 +692,13 @@ export default function CAV() {
     }
   }
 
+  // In-app back button — submitted is always free; everything else goes via guard
   const handleBack = () => {
-    if (step === "submitted")  { navigate("/"); return }
-    if (step === "previewing") { handleEditFromPreview(); return }
-    if (isDirty) { setBackDialog(true) } else { navigate("/") }
+    if (step === "submitted") { navigate("/"); return }
+    guardedNavigate("/")
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="bg-background min-h-screen">
@@ -481,14 +730,12 @@ export default function CAV() {
         {showErrorAlert && (
           <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-destructive/30 bg-destructive/5 overflow-hidden">
             <div className="flex items-start gap-3 px-4 py-3.5">
-              {/* Icon square */}
               <div className="h-8 w-8 rounded-lg bg-destructive/20 flex items-center justify-center shrink-0 mt-0.5">
                 <AlertCircle className="h-4 w-4 text-destructive" />
               </div>
-              {/* Text + pills */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-destructive leading-none mb-2">
-                  {errorCount} field{errorCount > 1 ? "s" : ""} need{errorCount === 1 ? "s" : ""} to be filled in
+                  {errorCount} field{errorCount > 1 ? "s" : ""} need{errorCount === 1 ? "s" : ""} attention
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {Object.values(fieldErrors).filter(Boolean).map((msg, i) => (
@@ -496,12 +743,11 @@ export default function CAV() {
                       key={i}
                       className="inline-flex items-center rounded-md bg-destructive/15 border border-destructive/20 px-2 py-0.5 text-[11px] font-medium text-destructive leading-none"
                     >
-                      {msg?.replace(" is required", "")}
+                      {msg?.replace(" is required", "").replace("Must be in YYYY-YYYY format (e.g. 2023-2024)", "Invalid format")}
                     </span>
                   ))}
                 </div>
               </div>
-              {/* Dismiss */}
               <button
                 type="button"
                 onClick={() => setErrorDismissed(true)}
@@ -532,16 +778,13 @@ export default function CAV() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEditFromPreview}
+                  variant="outline" size="sm" onClick={handleEditFromPreview}
                   className="h-8 gap-1.5 text-xs rounded-lg border-info/40 text-info bg-transparent hover:bg-info/10 hover:text-info"
                 >
                   <Edit2 className="h-3 w-3" /> Edit
                 </Button>
                 <Button
-                  size="sm"
-                  onClick={() => setSubmitDialog(true)}
+                  size="sm" onClick={() => setSubmitDialog(true)}
                   className="h-8 gap-1.5 text-xs rounded-lg bg-info hover:bg-info/90 text-white border-0"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> Confirm &amp; Submit
@@ -555,11 +798,9 @@ export default function CAV() {
         {step === "submitted" && (
           <div className="mb-6 animate-in slide-in-from-top-2 duration-200 rounded-xl border border-success/30 bg-success/5 overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3.5">
-              {/* Icon square */}
               <div className="h-8 w-8 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="h-4 w-4 text-success" />
               </div>
-              {/* Text */}
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-success leading-none mb-0.5">
                   Form submitted successfully
@@ -595,15 +836,17 @@ export default function CAV() {
                     icon={<User className="h-3.5 w-3.5" />}
                     error={hasErr("full_legal_name")}
                     errorMsg={fieldErrors.full_legal_name}
-                    filled={isFilled("full_legal_name")}
+                    filled={isFilled("full_legal_name") && !hasErr("full_legal_name")}
                   >
                     <Input
                       name="full_legal_name"
                       value={formData.full_legal_name}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       disabled={isLocked}
                       placeholder="e.g. Juan Dela Cruz"
                       className={inputCls("full_legal_name")}
+                      maxLength={120}
                     />
                   </Field>
                 </div>
@@ -613,31 +856,52 @@ export default function CAV() {
                   icon={<Hash className="h-3.5 w-3.5" />}
                   error={hasErr("control_no")}
                   errorMsg={fieldErrors.control_no}
-                  filled={isFilled("control_no")}
+                  filled={isFilled("control_no") && !hasErr("control_no")}
                 >
-                  <Input
-                    name="control_no"
-                    value={formData.control_no}
-                    onChange={handleChange}
-                    disabled={isLocked}
-                    placeholder="e.g. RHS-031626"
-                    className={inputCls("control_no")}
-                  />
+                  <div className={`flex h-10 rounded-lg border text-sm transition-all overflow-hidden ${
+                    hasErr("control_no") ? "border-destructive" : "border-border"
+                  }`}>
+                    <span className={`flex items-center px-3 text-sm font-medium border-r select-none shrink-0 ${
+                      hasErr("control_no")
+                        ? "bg-destructive/10 border-destructive text-destructive"
+                        : "bg-muted border-border text-muted-foreground"
+                    }`}>
+                      RHS-
+                    </span>
+                    <Input
+                      name="control_no"
+                      value={formData.control_no.replace(/^RHS-/i, "")}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/^RHS-/i, "")
+                        const synth = { ...e, target: { ...e.target, name: "control_no", value: `RHS-${raw}` } }
+                        handleChange(synth as React.ChangeEvent<HTMLInputElement>)
+                      }}
+                      onBlur={handleBlur}
+                      disabled={isLocked}
+                      placeholder="031626"
+                      className="border-0 rounded-none h-full focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent flex-1 min-w-0"
+                      maxLength={26}
+                    />
+                  </div>
                 </Field>
 
                 <Field
                   label="School Year Completed"
                   icon={<GraduationCap className="h-3.5 w-3.5" />}
-                  filled={isFilled("school_year_completed")}
+                  error={hasErr("school_year_completed")}
+                  errorMsg={fieldErrors.school_year_completed}
+                  filled={isFilled("school_year_completed") && !hasErr("school_year_completed")}
                   optional
                 >
                   <Input
                     name="school_year_completed"
                     value={formData.school_year_completed}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     disabled={isLocked}
                     placeholder="e.g. 2023-2024"
                     className={inputCls("school_year_completed")}
+                    maxLength={9}
                   />
                 </Field>
 
@@ -646,7 +910,7 @@ export default function CAV() {
                   icon={<GraduationCap className="h-3.5 w-3.5" />}
                   error={hasErr("school_year_graduated")}
                   errorMsg={fieldErrors.school_year_graduated}
-                  filled={isFilled("school_year_graduated")}
+                  filled={isFilled("school_year_graduated") && !hasErr("school_year_graduated")}
                 >
                   <DatePicker
                     value={formData.school_year_graduated}
@@ -662,33 +926,17 @@ export default function CAV() {
             {/* 2 ── Important Dates */}
             <SectionCard
               title="Important Dates"
-              subtitle="All dates relevant to this CAV request and the student's application."
+              subtitle="Dates are order-validated: application ≤ issued ≤ transmission."
               icon={<Calendar className="h-4 w-4" />}
               dimmed={step === "submitted"}
             >
               <div className="grid grid-cols-3 gap-x-5 gap-y-5">
                 <Field
-                  label="Date Issued"
-                  icon={<Calendar className="h-3.5 w-3.5" />}
-                  error={hasErr("date_issued")}
-                  errorMsg={fieldErrors.date_issued}
-                  filled={isFilled("date_issued")}
-                >
-                  <DatePicker
-                    value={formData.date_issued}
-                    onChange={v => handleDate("date_issued", v)}
-                    disabled={isLocked}
-                    placeholder="Pick a date"
-                    className={hasErr("date_issued") ? "border-destructive bg-destructive/5" : isFilled("date_issued") ? "border-border bg-muted/60" : ""}
-                  />
-                </Field>
-
-                <Field
                   label="Date of Application"
                   icon={<Calendar className="h-3.5 w-3.5" />}
                   error={hasErr("date_of_application")}
                   errorMsg={fieldErrors.date_of_application}
-                  filled={isFilled("date_of_application")}
+                  filled={isFilled("date_of_application") && !hasErr("date_of_application")}
                 >
                   <DatePicker
                     value={formData.date_of_application}
@@ -700,11 +948,27 @@ export default function CAV() {
                 </Field>
 
                 <Field
+                  label="Date Issued"
+                  icon={<Calendar className="h-3.5 w-3.5" />}
+                  error={hasErr("date_issued")}
+                  errorMsg={fieldErrors.date_issued}
+                  filled={isFilled("date_issued") && !hasErr("date_issued")}
+                >
+                  <DatePicker
+                    value={formData.date_issued}
+                    onChange={v => handleDate("date_issued", v)}
+                    disabled={isLocked}
+                    placeholder="Pick a date"
+                    className={hasErr("date_issued") ? "border-destructive bg-destructive/5" : isFilled("date_issued") ? "border-border bg-muted/60" : ""}
+                  />
+                </Field>
+
+                <Field
                   label="Date of Transmission"
                   icon={<Send className="h-3.5 w-3.5" />}
                   error={hasErr("date_of_transmission")}
                   errorMsg={fieldErrors.date_of_transmission}
-                  filled={isFilled("date_of_transmission")}
+                  filled={isFilled("date_of_transmission") && !hasErr("date_of_transmission")}
                 >
                   <DatePicker
                     value={formData.date_of_transmission}
@@ -720,10 +984,18 @@ export default function CAV() {
             {/* 3 ── Student Status */}
             <SectionCard
               title="Student Status"
-              subtitle="All fields here are optional. Fill in whichever rows apply — the PDF will automatically check the matching box for each one you complete."
+              subtitle="At least one row is required. The PDF will automatically check the matching box for each row you fill."
               icon={<BookOpen className="h-4 w-4" />}
               dimmed={step === "submitted"}
             >
+              {/* Show cross-field "at least one" error at the top of this section */}
+              {hasErr("enrolled_grade") && fieldErrors.enrolled_grade?.startsWith("At least") && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                  <p className="text-xs text-destructive">{fieldErrors.enrolled_grade}</p>
+                </div>
+              )}
+
               <div className="mb-5 rounded-xl border border-border bg-muted/20 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -758,46 +1030,109 @@ export default function CAV() {
               </div>
 
               <div className="space-y-2.5">
+                {/* Enrolled row */}
                 <StatusCard active={enrolledActive} label="Enrolled in">
                   <div className="flex items-center gap-2">
-                    <Input
-                      name="enrolled_grade" value={formData.enrolled_grade} onChange={handleChange}
-                      disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
-                      className={`h-9 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_grade ? "bg-muted/60" : "bg-background"}`}
-                    />
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        name="enrolled_grade"
+                        value={formData.enrolled_grade}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="Grade level (e.g. Grade 10)"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${formData.enrolled_grade ? "bg-muted/60" : "bg-background"}`}
+                        maxLength={40}
+                      />
+                    </div>
                     <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
-                    <Input
-                      name="enrolled_sy" value={formData.enrolled_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-9 text-sm w-28 rounded-lg border-border disabled:opacity-50 ${formData.enrolled_sy ? "bg-muted/60" : "bg-background"}`}
-                    />
+                    <div className="w-28 space-y-1">
+                      <Input
+                        name="enrolled_sy"
+                        value={formData.enrolled_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("enrolled_sy") ? "border-destructive bg-destructive/5" :
+                          formData.enrolled_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("enrolled_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.enrolled_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
 
+                {/* Completed row */}
                 <StatusCard active={completedActive} label="Completed">
                   <div className="flex items-center gap-2">
                     <Input
-                      name="status_completed_grade" value={formData.status_completed_grade} onChange={handleChange}
-                      disabled={isLocked} placeholder="Grade level (e.g. Grade 10)"
+                      name="status_completed_grade"
+                      value={formData.status_completed_grade}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isLocked}
+                      placeholder="Grade level (e.g. Grade 10)"
                       className={`h-9 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_grade ? "bg-muted/60" : "bg-background"}`}
+                      maxLength={40}
                     />
                     <span className="text-xs text-muted-foreground whitespace-nowrap">during SY</span>
-                    <Input
-                      name="status_completed_sy" value={formData.status_completed_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-9 text-sm w-28 rounded-lg border-border disabled:opacity-50 ${formData.status_completed_sy ? "bg-muted/60" : "bg-background"}`}
-                    />
+                    <div className="w-28 space-y-1">
+                      <Input
+                        name="status_completed_sy"
+                        value={formData.status_completed_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("status_completed_sy") ? "border-destructive bg-destructive/5" :
+                          formData.status_completed_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("status_completed_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.status_completed_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
 
+                {/* Graduated row */}
                 <StatusCard active={graduatedActive} label="Satisfactorily graduated from Secondary Course">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground whitespace-nowrap">for SY</span>
-                    <Input
-                      name="status_graduated_sy" value={formData.status_graduated_sy} onChange={handleChange}
-                      disabled={isLocked} placeholder="2020-2021"
-                      className={`h-9 text-sm flex-1 rounded-lg border-border disabled:opacity-50 ${formData.status_graduated_sy ? "bg-muted/60" : "bg-background"}`}
-                    />
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        name="status_graduated_sy"
+                        value={formData.status_graduated_sy}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={isLocked}
+                        placeholder="2020-2021"
+                        className={`h-9 text-sm rounded-lg border-border disabled:opacity-50 ${
+                          hasErr("status_graduated_sy") ? "border-destructive bg-destructive/5" :
+                          formData.status_graduated_sy ? "bg-muted/60" : "bg-background"
+                        }`}
+                        maxLength={9}
+                      />
+                      {hasErr("status_graduated_sy") && (
+                        <p className="text-[11px] text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                          {fieldErrors.status_graduated_sy}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </StatusCard>
               </div>
@@ -806,7 +1141,7 @@ export default function CAV() {
             {/* 4 ── Signatories */}
             <SectionCard
               title="Signatories"
-              subtitle="Select the staff members who will sign and appear on the CAV form."
+              subtitle="Select the staff members who will sign the CAV form. They must be different people."
               icon={<Pen className="h-4 w-4" />}
               dimmed={step === "submitted"}
             >
@@ -844,7 +1179,14 @@ export default function CAV() {
                       {preparedOptions.map(p => (
                         <DropdownMenuItem key={p.id} onSelect={() => {
                           setFormData(prev => ({ ...prev, prepared_by: p.id }))
+                          markTouched("prepared_by")
                           clearError("prepared_by")
+                          // Re-check the same-person cross-field error on submitted_by too
+                          if (formData.submitted_by && p.id === formData.submitted_by) {
+                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                          } else {
+                            clearError("submitted_by")
+                          }
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{p.full_name}</p>
@@ -897,7 +1239,13 @@ export default function CAV() {
                       {submittedOptions.map(s => (
                         <DropdownMenuItem key={s.id} onSelect={() => {
                           setFormData(prev => ({ ...prev, submitted_by: s.id }))
-                          clearError("submitted_by")
+                          markTouched("submitted_by")
+                          // Check same-person rule immediately
+                          if (formData.prepared_by && s.id === formData.prepared_by) {
+                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                          } else {
+                            clearError("submitted_by")
+                          }
                         }}>
                           <div className="py-0.5">
                             <p className="text-sm font-medium">{s.full_name}</p>
@@ -980,13 +1328,13 @@ export default function CAV() {
                     </div>
                     <div className="text-center space-y-1.5">
                       <p className="text-sm font-semibold text-foreground">No preview yet</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
+                      <p className="text-sm text-muted-foreground leading-relaxed max-w-50">
                         Fill in the form on the left, then click{" "}
                         <span className="font-semibold text-foreground">Preview PDF</span>{" "}
                         to see a live preview here.
                       </p>
                     </div>
-                    <div className="w-full max-w-[220px]">
+                    <div className="w-full max-w-55">
                       <ProgressBar value={progress} filled={filledRequired} total={requiredKeys.length} />
                     </div>
                   </div>
@@ -1094,6 +1442,8 @@ export default function CAV() {
       </AlertDialog>
 
       {/* ══ DISCARD & LEAVE DIALOG ═══════════════════════════════════════════ */}
+      {/* This dialog is only shown by the browser popstate handler (back button). */}
+      {/* Navbar/link navigation shows the provider's own dialog instead.         */}
       <AlertDialog open={showBackDialog} onOpenChange={setBackDialog}>
         <AlertDialogContent className="max-w-sm rounded-2xl">
           <AlertDialogHeader className="items-center text-center sm:text-center">
@@ -1106,13 +1456,42 @@ export default function CAV() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">Keep Editing</AlertDialogCancel>
+            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Keep Editing
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => navigate("/")}
+              onClick={() => { setBackDialog(false); navigate("/") }}
               className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
             >
               <TriangleAlert className="h-3.5 w-3.5" /> Discard &amp; Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ══ RELOAD GUARD DIALOG ══════════════════════════════════════════════ */}
+      <AlertDialog open={showReloadDialog} onOpenChange={setReloadDialog}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader className="items-center text-center sm:text-center">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+              <TriangleAlert className="h-7 w-7 text-destructive" />
+            </div>
+            <AlertDialogTitle className="text-base font-bold">Reload page?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              Reloading will discard everything you've entered. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="flex-1 rounded-xl h-10 m-0 text-sm">
+              Stay on Page
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => window.location.reload()}
+              className="flex-1 rounded-xl h-10 gap-2 m-0 text-sm"
+            >
+              <TriangleAlert className="h-3.5 w-3.5" /> Reload Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1129,7 +1508,7 @@ export default function CAV() {
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>
               </Alert>
             ) : (
-              <Alert variant={"success"}>
+              <Alert variant="success">
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertTitle className="text-sm font-semibold">{t.title}</AlertTitle>
                 <AlertDescription className="text-sm">{t.message}</AlertDescription>

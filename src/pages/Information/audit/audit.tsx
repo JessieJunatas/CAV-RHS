@@ -6,7 +6,7 @@ import { auditColumns } from "@/components/audit-comp/audit-columns"
 import type { AuditLog } from "@/types/audit"
 import { DataTableLoading } from "@/components/dataTable/data-table-skeleton"
 import { ScrollText } from "lucide-react"
-import { useCollapse } from "@/context/collapse-provider"   // ← NEW
+import { useCollapse } from "@/context/collapse-provider"
 
 export default function Audit() {
   const { px } = useCollapse()   // ← NEW
@@ -52,7 +52,10 @@ export default function Audit() {
         <h1 className="text-xl font-bold tracking-tight">Audit Logs</h1>
       </div>
       <div className="pt-3">
-        <DataTable columns={auditColumns} data={data} />
+        <DataTable
+          columns={auditColumns}
+          data={data}
+        />
       </div>
     </div>
   )
