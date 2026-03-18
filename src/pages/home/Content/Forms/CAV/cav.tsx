@@ -112,8 +112,6 @@ const RULES: Partial<Record<keyof CavFormData, RuleFn>> = {
   school_year_completed: (v) => {
     if (!v.trim()) return null // optional
     if (!SY_REGEX.test(v.trim())) return "Must be in YYYY-YYYY format (e.g. 2023-2024)"
-    const [start, end] = v.trim().split("-").map(Number)
-    if (end !== start + 1) return "End year must be exactly one year after start"
     return null
   },
 
