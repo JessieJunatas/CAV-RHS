@@ -47,20 +47,15 @@ export function useMaintenance() {
     // Any browser / user that has this hook mounted will react instantly
     const channel = supabase
       .channel("app_config_maintenance")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "app_config",
-          filter: "key=eq.maintenance",
-        },
-        (payload) => {
-          if (!ignore && payload.new?.value) {
-            setState({ ...DEFAULT, ...(payload.new.value as Partial<MaintenanceState>) })
-          }
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "app_config",
+      }, (payload) => {
+        if (payload.new.key === "maintenance") {
+          setState({ ...DEFAULT, ...(payload.new.value as Partial<MaintenanceState>) })
         }
-      )
+      })
       .subscribe()
 
     return () => {
