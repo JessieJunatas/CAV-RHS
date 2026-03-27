@@ -43,6 +43,10 @@ type CavK12FormData = {
   status_completed_sy: string
   status_graduated_sy: string
   is_graduated: boolean
+  docs_completion: boolean
+  docs_english_medium: boolean
+  docs_form137: boolean
+  docs_diploma: boolean
   prepared_by?: string
   submitted_by?: string
 }
@@ -51,15 +55,14 @@ type Step = "editing" | "previewing" | "submitted"
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const EMPTY: CavK12FormData = {
   full_legal_name: "", lrn: "",
   date_issued: "", date_of_transmission: "",
   school_year_completed: "", date_of_application: "", school_year_graduated: "",
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
-  is_graduated: false,
-  prepared_by: "", submitted_by: "",
+  is_graduated: false, docs_completion: true, docs_english_medium: true, 
+  docs_form137: true, docs_diploma: true, prepared_by: "", submitted_by: "",
 }
 
 const FIELD_LABELS: Record<keyof CavK12FormData, string> = {
@@ -69,16 +72,15 @@ const FIELD_LABELS: Record<keyof CavK12FormData, string> = {
   school_year_graduated: "School Year Graduated", control_no: "Control No.",
   enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
-  status_graduated_sy: "Status Graduated SY",
-  is_graduated: "Completion Status",
-  prepared_by: "Prepared By", submitted_by: "Submitted By",
+  status_graduated_sy: "Status Graduated SY", is_graduated: "Completion Status",
+  prepared_by: "Prepared By", submitted_by: "Submitted By", docs_completion: "Cert Completion", docs_english_medium: "Cert Eng", 
+  docs_form137: "SF-10", docs_diploma: "Diploma",
 }
 
-// Fields that are NOT required for submit (but may still have format rules)
 const OPTIONAL: (keyof CavK12FormData)[] = [
   "enrolled_grade", "enrolled_sy", "school_year_completed", "school_year_graduated",
-  "status_completed_grade", "status_completed_sy", "status_graduated_sy",
-  "is_graduated",
+  "status_completed_grade", "status_completed_sy", "status_graduated_sy", "is_graduated",
+  "docs_completion", "docs_english_medium", "docs_form137", "docs_diploma",
 ]
 
 const STEPS: { key: Step; label: string; desc: string }[] = [
@@ -1136,7 +1138,47 @@ export default function CAVK12() {
                 </StatusCard>
               </div>
             </SectionCard>
-
+            {/* 5 ── Attached Documents */}
+            <SectionCard
+              title="Attached Documents"
+              subtitle="Select the documents enclosed in the sealed envelope."
+              icon={<FileText className="h-4 w-4" />}
+              dimmed={step === "submitted"}
+            >
+              <div className="space-y-2.5">
+                {([
+                  { key: "docs_completion",     label: "Certification of Completion/Graduation" },
+                  { key: "docs_english_medium", label: "Certification of English as Medium of Instruction" },
+                  { key: "docs_form137",        label: "Form 137" },
+                  { key: "docs_diploma",        label: "Diploma" },
+                ] as const).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => setFormData(p => ({ ...p, [key]: !p[key] }))}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200 disabled:opacity-50 ${
+                      formData[key]
+                        ? "border-foreground/20 bg-muted/50 shadow-sm"
+                        : "border-border/50 bg-muted/10 hover:border-border hover:bg-muted/20"
+                    }`}
+                  >
+                    <div className={`h-5 w-5 shrink-0 rounded-md flex items-center justify-center transition-all duration-200 ${
+                      formData[key]
+                        ? "bg-foreground text-background"
+                        : "border-2 border-border/60 bg-background"
+                    }`}>
+                      {formData[key] && <CheckCircle2 className="h-3 w-3" />}
+                    </div>
+                    <span className={`text-sm font-medium ${
+                      formData[key] ? "text-foreground" : "text-muted-foreground"
+                    }`}>
+                      {label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </SectionCard>
             {/* 4 ── Signatories */}
             <SectionCard
               title="Signatories"
@@ -1261,7 +1303,7 @@ export default function CAVK12() {
                 </div>
               </div>
             </SectionCard>
-
+            
             {/* Bottom CTA */}
             {step === "editing" && (
               <Button
