@@ -55,18 +55,32 @@ export async function generatePreviewUrl(
   const name = (form.full_legal_name ?? "").toUpperCase()
   const { ordinal, month, year } = formatFullDateParts(form.date_issued)
 
-  function setField(fieldName: string, value: string, bold = false) {
-    try {
-      const field = pdfForm.getTextField(fieldName)
-      field.setText(value ?? "")
-      if (bold) field.updateAppearances(boldFont)
-    } catch {
-      console.warn(`Field "${fieldName}" not found in PDF`)
+  function setField(fieldName: string, value: string, bold = false, multiline = false) {
+  try {
+    const field = pdfForm.getTextField(fieldName)
+    if (multiline) {
+      field.enableMultiline()
+      const PADDING = 2
+      const widgets = field.acroField.getWidgets()
+      for (const widget of widgets) {
+        const rect = widget.getRectangle()
+        widget.setRectangle({
+          x: rect.x + PADDING,
+          y: rect.y,
+          width: Math.max(10, rect.width - PADDING * 2),
+          height: rect.height,
+        })
+      }
     }
+    field.setText(value ?? "")
+    if (bold) field.updateAppearances(boldFont)
+  } catch {
+    console.warn(`Field "${fieldName}" not found in PDF`)
+  }
   }
 
   setField("control_no", form.control_no ?? "")
-  setField("student_name", name, true)
+  setField("student_name", name, true, true)
   setField("date_of_application", formatDate(form.date_of_application))
   setField("date_of_transmittal", formatDate(form.date_of_transmission))
   setField("prepared_by_name", prepareName, true)
@@ -78,6 +92,10 @@ export async function generatePreviewUrl(
   setField("p2_student_name", name, true)
   setField("p2_submitted_by_name", submitName, true)
   setField("p2_submitted_by_position", submitPosition, true)
+  setField("p2_check_completion",     form.docs_completion     ? "( X ) Certification of Completion/Graduation" : "")
+  setField("p2_check_english_medium", form.docs_english_medium ? "( X ) Certification of English as Meidum of Instruction" : "")
+  setField("p2_check_form137",        form.docs_form137        ? "( X ) SF-10" : "")
+  setField("p2_check_diploma",        form.docs_diploma        ? "( X ) Diploma" : "")
 
   setField("p3_student_name", name, true)
 

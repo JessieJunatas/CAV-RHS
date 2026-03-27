@@ -45,19 +45,23 @@ type CavFormData = {
   prepared_by?: string
   submitted_by?: string
   is_graduated: boolean
+  docs_completion: boolean
+  docs_english_medium: boolean
+  docs_form137: boolean
+  docs_diploma: boolean
 }
 
 type Step = "editing" | "previewing" | "submitted"
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const EMPTY: CavFormData = {
   full_legal_name: "", date_issued: "", date_of_transmission: "",
   school_year_completed: "", date_of_application: "", school_year_graduated: "",
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
-  prepared_by: "", submitted_by: "", is_graduated: false,
+  prepared_by: "", submitted_by: "", is_graduated: false, docs_completion: true, 
+  docs_english_medium: true, docs_form137: true, docs_diploma: true,
 }
 
 const FIELD_LABELS: Record<keyof CavFormData, string> = {
@@ -67,13 +71,14 @@ const FIELD_LABELS: Record<keyof CavFormData, string> = {
   control_no: "Control No.", enrolled_grade: "Enrolled Grade", enrolled_sy: "Enrolled SY",
   status_completed_grade: "Status Completed Grade", status_completed_sy: "Status Completed SY",
   status_graduated_sy: "Status Graduated SY", prepared_by: "Prepared By", submitted_by: "Submitted By",
-  is_graduated: "Completion Status",
+  is_graduated: "Completion Status", docs_completion: "Cert Completion", docs_english_medium: "Cert Eng", 
+  docs_form137: "SF-10", docs_diploma: "Diploma",
 }
 
-// Fields that are NOT required for submit (but may still have format rules)
 const OPTIONAL: (keyof CavFormData)[] = [
-  "enrolled_grade", "enrolled_sy", "school_year_completed",
+  "enrolled_grade", "enrolled_sy", "school_year_completed", "school_year_graduated",
   "status_completed_grade", "status_completed_sy", "status_graduated_sy", "is_graduated",
+  "docs_completion", "docs_english_medium", "docs_form137", "docs_diploma",
 ]
 
 const STEPS: { key: Step; label: string; desc: string }[] = [
@@ -118,7 +123,7 @@ const RULES: Partial<Record<keyof CavFormData, RuleFn>> = {
   },
 
   school_year_graduated: (v) => {
-    if (!v.trim()) return "School year graduated is required"
+    if (!v.trim()) return null // optional
     return null
   },
 
@@ -1137,135 +1142,176 @@ export default function CAV() {
                 </StatusCard>
               </div>
             </SectionCard>
+              {/* 4 ── Attached Documents */}
+              <SectionCard
+                title="Attached Documents"
+                subtitle="Select the documents enclosed in the sealed envelope."
+                icon={<FileText className="h-4 w-4" />}
+                dimmed={step === "submitted"}
+              >
+                <div className="space-y-2.5">
+                  {([
+                    { key: "docs_completion",     label: "Certification of Completion/Graduation" },
+                    { key: "docs_english_medium", label: "Certification of English as Medium of Instruction" },
+                    { key: "docs_form137",        label: "Form 137" },
+                    { key: "docs_diploma",        label: "Diploma" },
+                  ] as const).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() => setFormData(p => ({ ...p, [key]: !p[key] }))}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200 disabled:opacity-50 ${
+                        formData[key]
+                          ? "border-foreground/20 bg-muted/50 shadow-sm"
+                          : "border-border/50 bg-muted/10 hover:border-border hover:bg-muted/20"
+                      }`}
+                    >
+                      <div className={`h-5 w-5 shrink-0 rounded-md flex items-center justify-center transition-all duration-200 ${
+                        formData[key]
+                          ? "bg-foreground text-background"
+                          : "border-2 border-border/60 bg-background"
+                      }`}>
+                        {formData[key] && <CheckCircle2 className="h-3 w-3" />}
+                      </div>
+                      <span className={`text-sm font-medium ${
+                        formData[key] ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        {label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </SectionCard>
 
-            {/* 4 ── Signatories */}
-            <SectionCard
-              title="Signatories"
-              subtitle="Select the staff members who will sign the CAV form. They must be different people."
-              icon={<Pen className="h-4 w-4" />}
-              dimmed={step === "submitted"}
-            >
-              <div className="grid grid-cols-2 gap-5">
-                {/* Prepared By */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
-                    <label className={`text-sm font-medium ${hasErr("prepared_by") ? "text-destructive" : "text-foreground"}`}>
-                      Prepared By
-                    </label>
-                    {isFilled("prepared_by") && !hasErr("prepared_by") && (
-                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
-                    )}
+              {/* 5 ── Signatories */}
+              <SectionCard
+                title="Signatories"
+                subtitle="Select the staff members who will sign the CAV form. They must be different people."
+                icon={<Pen className="h-4 w-4" />}
+                dimmed={step === "submitted"}
+              >
+                <div className="grid grid-cols-2 gap-5">
+                  {/* Prepared By */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                      <label className={`text-sm font-medium ${hasErr("prepared_by") ? "text-destructive" : "text-foreground"}`}>
+                        Prepared By
+                      </label>
+                      {isFilled("prepared_by") && !hasErr("prepared_by") && (
+                        <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
+                      )}
+                      {hasErr("prepared_by") && (
+                        <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                      )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild disabled={isLocked}>
+                        <Button
+                          variant="outline"
+                          className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                            hasErr("prepared_by") ? "border-destructive bg-destructive/5"
+                            : prepObj ? "border-border bg-muted/60" : ""
+                          }`}
+                        >
+                          <span className={`truncate text-left text-sm ${!prepObj ? "text-muted-foreground" : ""}`}>
+                            {prepObj ? prepObj.full_name : "Select a signatory…"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
+                        {preparedOptions.map(p => (
+                          <DropdownMenuItem key={p.id} onSelect={() => {
+                            setFormData(prev => ({ ...prev, prepared_by: p.id }))
+                            markTouched("prepared_by")
+                            clearError("prepared_by")
+                            // Re-check the same-person cross-field error on submitted_by too
+                            if (formData.submitted_by && p.id === formData.submitted_by) {
+                              setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                            } else {
+                              clearError("submitted_by")
+                            }
+                          }}>
+                            <div className="py-0.5">
+                              <p className="text-sm font-medium">{p.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{p.position}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {hasErr("prepared_by") && (
-                      <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.prepared_by}
+                      </p>
+                    )}
+                    {prepObj && !hasErr("prepared_by") && (
+                      <p className="text-xs text-muted-foreground pl-1 truncate">{prepObj.position}</p>
                     )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button
-                        variant="outline"
-                        className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
-                          hasErr("prepared_by") ? "border-destructive bg-destructive/5"
-                          : prepObj ? "border-border bg-muted/60" : ""
-                        }`}
-                      >
-                        <span className={`truncate text-left text-sm ${!prepObj ? "text-muted-foreground" : ""}`}>
-                          {prepObj ? prepObj.full_name : "Select a signatory…"}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
-                      {preparedOptions.map(p => (
-                        <DropdownMenuItem key={p.id} onSelect={() => {
-                          setFormData(prev => ({ ...prev, prepared_by: p.id }))
-                          markTouched("prepared_by")
-                          clearError("prepared_by")
-                          // Re-check the same-person cross-field error on submitted_by too
-                          if (formData.submitted_by && p.id === formData.submitted_by) {
-                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
-                          } else {
-                            clearError("submitted_by")
-                          }
-                        }}>
-                          <div className="py-0.5">
-                            <p className="text-sm font-medium">{p.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{p.position}</p>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {hasErr("prepared_by") && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.prepared_by}
-                    </p>
-                  )}
-                  {prepObj && !hasErr("prepared_by") && (
-                    <p className="text-xs text-muted-foreground pl-1 truncate">{prepObj.position}</p>
-                  )}
-                </div>
 
-                {/* Submitted By */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
-                    <label className={`text-sm font-medium ${hasErr("submitted_by") ? "text-destructive" : "text-foreground"}`}>
-                      Submitted By
-                    </label>
-                    {isFilled("submitted_by") && !hasErr("submitted_by") && (
-                      <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
-                    )}
+                  {/* Submitted By */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Pen className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                      <label className={`text-sm font-medium ${hasErr("submitted_by") ? "text-destructive" : "text-foreground"}`}>
+                        Submitted By
+                      </label>
+                      {isFilled("submitted_by") && !hasErr("submitted_by") && (
+                        <CheckCircle2 className="ml-auto h-3.5 w-3.5 text-success shrink-0" />
+                      )}
+                      {hasErr("submitted_by") && (
+                        <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                      )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild disabled={isLocked}>
+                        <Button
+                          variant="outline"
+                          className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
+                            hasErr("submitted_by") ? "border-destructive bg-destructive/5"
+                            : subObj ? "border-border bg-muted/60" : ""
+                          }`}
+                        >
+                          <span className={`truncate text-left text-sm ${!subObj ? "text-muted-foreground" : ""}`}>
+                            {subObj ? subObj.full_name : "Select a signatory…"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
+                        {submittedOptions.map(s => (
+                          <DropdownMenuItem key={s.id} onSelect={() => {
+                            setFormData(prev => ({ ...prev, submitted_by: s.id }))
+                            markTouched("submitted_by")
+                            // Check same-person rule immediately
+                            if (formData.prepared_by && s.id === formData.prepared_by) {
+                              setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
+                            } else {
+                              clearError("submitted_by")
+                            }
+                          }}>
+                            <div className="py-0.5">
+                              <p className="text-sm font-medium">{s.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{s.position}</p>
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {hasErr("submitted_by") && (
-                      <AlertCircle className="ml-auto h-3.5 w-3.5 text-destructive shrink-0" />
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.submitted_by}
+                      </p>
+                    )}
+                    {subObj && !hasErr("submitted_by") && (
+                      <p className="text-xs text-muted-foreground pl-1 truncate">{subObj.position}</p>
                     )}
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild disabled={isLocked}>
-                      <Button
-                        variant="outline"
-                        className={`w-full h-10 px-3 text-sm font-normal justify-between disabled:opacity-50 ${
-                          hasErr("submitted_by") ? "border-destructive bg-destructive/5"
-                          : subObj ? "border-border bg-muted/60" : ""
-                        }`}
-                      >
-                        <span className={`truncate text-left text-sm ${!subObj ? "text-muted-foreground" : ""}`}>
-                          {subObj ? subObj.full_name : "Select a signatory…"}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="min-w-(--radix-dropdown-menu-trigger-width)" align="start">
-                      {submittedOptions.map(s => (
-                        <DropdownMenuItem key={s.id} onSelect={() => {
-                          setFormData(prev => ({ ...prev, submitted_by: s.id }))
-                          markTouched("submitted_by")
-                          // Check same-person rule immediately
-                          if (formData.prepared_by && s.id === formData.prepared_by) {
-                            setFieldErrors(prev => ({ ...prev, submitted_by: "Submitted By must be a different person from Prepared By" }))
-                          } else {
-                            clearError("submitted_by")
-                          }
-                        }}>
-                          <div className="py-0.5">
-                            <p className="text-sm font-medium">{s.full_name}</p>
-                            <p className="text-xs text-muted-foreground">{s.position}</p>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {hasErr("submitted_by") && (
-                    <p className="text-xs text-destructive flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 shrink-0" /> {fieldErrors.submitted_by}
-                    </p>
-                  )}
-                  {subObj && !hasErr("submitted_by") && (
-                    <p className="text-xs text-muted-foreground pl-1 truncate">{subObj.position}</p>
-                  )}
                 </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
 
             {/* Bottom CTA */}
             {step === "editing" && (

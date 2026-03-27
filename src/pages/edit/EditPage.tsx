@@ -53,17 +53,18 @@ type FormData = {
   prepared_by?: string
   submitted_by?: string
   form_type?: number
+  docs_completion?: boolean
+  docs_english_medium?: boolean
+  docs_form137?: boolean
+  docs_diploma?: boolean
   [key: string]: any
 }
 
 type Toast = { id: number; type: "error" | "success"; title: string; message: string }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 const REQUIRED_FIELDS: (keyof FormData)[] = [
   "full_legal_name",
   "control_no",
-  "school_year_graduated",
   "date_issued",
   "date_of_application",
   "date_of_transmission",
@@ -621,6 +622,7 @@ export default function EditPage() {
             {/* ── Student Information ───────────────────────────────────────── */}
             <SectionCard
               title="Student Information"
+              subtitle="Basic details about the student this CAV form is being prepared for."
               icon={<User className="h-4 w-4" />}
               changedCount={countChanged("full_legal_name", "control_no", "lrn", "school_year_completed", "school_year_graduated")}
             >
@@ -717,6 +719,7 @@ export default function EditPage() {
             {/* ── Dates ─────────────────────────────────────────────────────── */}
             <SectionCard
               title="Important Dates"
+              subtitle="Dates are order-validated: application ≤ issued ≤ transmission."
               icon={<Calendar className="h-4 w-4" />}
               changedCount={countChanged("date_issued", "date_of_application", "date_of_transmission")}
             >
@@ -789,7 +792,7 @@ export default function EditPage() {
             {/* ── Student Status ────────────────────────────────────────────── */}
             <SectionCard
               title="Student Status"
-              subtitle="Optional — entering values will auto-fill and check the corresponding box in the PDF."
+              subtitle="At least one row is required. The PDF will automatically check the matching box for each row you fill."
               icon={<BookOpen className="h-4 w-4" />}
               changedCount={countChanged(
                 "is_graduated", "enrolled_grade", "enrolled_sy",
@@ -909,10 +912,61 @@ export default function EditPage() {
               </div>
             </SectionCard>
 
+            {/* ── Attached Documents ────────────────────────────────────────── */}
+            <SectionCard
+              title="Attached Documents"
+              subtitle="Select the documents enclosed in the sealed envelope."
+              icon={<FileText className="h-4 w-4" />}
+              changedCount={countChanged("docs_completion", "docs_english_medium", "docs_form137", "docs_diploma")}
+            >
+              <div className="space-y-2.5">
+                {([
+                  { key: "docs_completion",     label: "Certification of Completion/Graduation" },
+                  { key: "docs_english_medium", label: "Certification of English as Medium of Instruction" },
+                  { key: "docs_form137",        label: "Form 137" },
+                  { key: "docs_diploma",        label: "Diploma" },
+                ] as const).map(({ key, label }) => {
+                  const isChecked = !!formData[key]
+                  const isChanged = ch(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSaved(false)
+                        setFormData(p => p ? ({ ...p, [key]: !p[key] }) : p)
+                      }}
+                      className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                        isChecked
+                          ? "border-foreground/20 bg-muted/50 shadow-sm"
+                          : "border-border/50 bg-muted/10 hover:border-border hover:bg-muted/20"
+                      } ${isChanged ? "ring-1 ring-amber-400/40" : ""}`}
+                    >
+                      <div className={`h-5 w-5 shrink-0 rounded-md flex items-center justify-center transition-all duration-200 ${
+                        isChecked
+                          ? "bg-foreground text-background"
+                          : "border-2 border-border/60 bg-background"
+                      }`}>
+                        {isChecked && <CheckCircle2 className="h-3 w-3" />}
+                      </div>
+                      <span className={`text-sm font-medium flex-1 ${
+                        isChecked ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        {label}
+                      </span>
+                      {isChanged && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </SectionCard>
+
             {/* ── Signatories ───────────────────────────────────────────────── */}
             <SectionCard
               title="Signatories"
-              subtitle="Select the staff members who will sign and appear on the CAV form."
+              subtitle="Select the staff members who will sign and appear on the CAV form. They must be different people."
               icon={<Pen className="h-4 w-4" />}
               changedCount={countChanged("prepared_by", "submitted_by")}
             >
@@ -1202,7 +1256,7 @@ function LoadingSkeleton() {
         </div>
         <div className="grid grid-cols-[1fr_490px] gap-6">
           <div className="space-y-5">
-            {[4, 3, 3, 2].map((cols, i) => (
+            {[4, 3, 3, 4, 2].map((cols, i) => (
               <div key={i} className="rounded-2xl border border-border overflow-hidden">
                 <div className="h-15 bg-muted/30 border-b border-border" />
                 <div className="p-6 grid grid-cols-2 gap-5">

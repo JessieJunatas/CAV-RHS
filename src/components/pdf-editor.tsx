@@ -32,6 +32,7 @@ interface PlacedField {
   fontSize: number;
   indentLeft: number; indentRight: number; indentTop: number;
   textAlign: TextAlign;
+  multiline?: boolean;
 }
 interface PageData { dataUrl: string; width: number; height: number }
 interface PageDimension { width: number; height: number }
@@ -50,7 +51,14 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NUDGE = 1;
 const HISTORY_LIMIT = 50;
 const snap = (v: number) => Math.round(v / SNAP_SIZE) * SNAP_SIZE;
-
+const MULTILINE_FIELDS = new Set([
+  "student_name", "p2_student_name", "p3_student_name", "p4_student_name",
+  "p3_request_name",
+  "prepared_by_name", "submitted_by_name",
+  "p2_submitted_by_name", "p3_submitted_by_name", "p4_submitted_by_name",
+  "prepared_by_position", "submitted_by_position",
+  "p2_submitted_by_position", "p3_submitted_by_position", "p4_submitted_by_position",
+]);
 const TYPE_PREFIX: Record<TemplateType, string> = { jhs: "jhs/", k12: "k12/" };
 const detectTemplateType = (name: string): TemplateType =>
   name.startsWith("k12/") ? "k12" : "jhs";
@@ -92,6 +100,10 @@ const JHS_FIELD_GROUPS: FieldGroup[] = [
     fields: [
       { name: "p2_date", label: "Date" },
       { name: "p2_student_name", label: "Student Name" },
+      { name: "p2_check_completion",     label: "Check – Completion/Graduation" },
+      { name: "p2_check_english_medium", label: "Check – English Medium" },
+      { name: "p2_check_form137",        label: "Check – Form 137" },
+      { name: "p2_check_diploma",        label: "Check – Diploma" },
       { name: "p2_submitted_by_name", label: "Submitted By – Name" },
       { name: "p2_submitted_by_position", label: "Submitted By – Position" },
     ],
@@ -177,6 +189,10 @@ const K12_FIELD_GROUPS: FieldGroup[] = [
       { name: "p2_date", label: "Date" },
       { name: "p2_student_name", label: "Student Name" },
       { name: "p2_lrn", label: "LRN" },
+      { name: "p2_check_completion",     label: "Check – Completion/Graduation" },
+      { name: "p2_check_english_medium", label: "Check – English Medium" },
+      { name: "p2_check_form137",        label: "Check – Form 137" },
+      { name: "p2_check_diploma",        label: "Check – Diploma" },
       { name: "p2_submitted_by_name", label: "Submitted By – Name" },
       { name: "p2_submitted_by_position", label: "Submitted By – Position" },
     ],
