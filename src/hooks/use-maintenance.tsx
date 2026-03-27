@@ -9,7 +9,7 @@ export interface MaintenanceState {
 const DEFAULT: MaintenanceState = {
   enabled: false,
   message:
-    "This system is currently undergoing scheduled maintenance or an update. Please check back shortly.",
+    "This system is currently undergoing scheduled maintenance or an update. Please sit by!"
 }
 
 export function useMaintenance() {

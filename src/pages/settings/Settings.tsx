@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAppearance } from "@/components/appearance-provider"
 import { cn } from "@/lib/utils"
-import { Check, FileText, ChevronRight, Paintbrush, Layout, Loader2 } from "lucide-react"
+import { Check, FileText, ChevronRight, Paintbrush, Layout, Loader2, Wrench } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMaintenance } from "@/hooks/use-maintenance"
@@ -288,9 +288,12 @@ function Settings() {
                 {maintenance.enabled && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
-                    <div className="rounded-lg overflow-hidden border border-yellow-400/40">
-                      <div className="bg-yellow-400 text-yellow-950 px-4 py-2 text-xs font-medium flex items-center justify-center gap-2">
-                        <span>🔧</span>
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      <div
+                        className="px-4 py-2 text-xs font-bold flex items-center justify-center gap-2"
+                        style={{ backgroundColor: "var(--orange)", color: "white" }}
+                      >
+                        <Wrench className="w-3 h-3 shrink-0" />
                         <span className="truncate">{maintenance.message}</span>
                       </div>
                     </div>
@@ -299,8 +302,6 @@ function Settings() {
 
               </div>
             </section>
-
-            <div className="border-t border-border" />
 
             {/* ── Document Templates ── */}
             <section>
