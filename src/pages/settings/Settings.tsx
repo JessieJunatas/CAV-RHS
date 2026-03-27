@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAppearance } from "@/components/appearance-provider"
 import { cn } from "@/lib/utils"
-import { Check, FileText, ChevronRight, Paintbrush, Layout } from "lucide-react"
+import { Check, FileText, ChevronRight, Paintbrush, Layout, AlertTriangle, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useMaintenance } from "@/hooks/use-maintenance"
 
 const FONT_SIZES = [
   { value: "small",  label: "Small",  px: "14px", scale: 0.875 },
@@ -47,13 +48,13 @@ function Settings() {
     FONT_CATEGORIES.find(c => c.fonts.includes(fontStyle))?.id ?? "sans"
   )
   const navigate = useNavigate()
+  const maintenance = useMaintenance()
 
   const currentFonts = FONT_CATEGORIES.find(c => c.id === activeCategory)!.fonts
 
   return (
     <div className="bg-background">
-
-      <div className="mx-auto w-full max-w-4xl px-6 pt-10">
+      <div className="mx-auto w-full max-w-4xl px-6 pt-10 pb-16">
 
         {/* ── Page header ── */}
         <div className="mb-8">
@@ -84,6 +85,10 @@ function Settings() {
               >
                 <Icon className="w-3.5 h-3.5" />
                 {tab.label}
+                {/* Red dot on System tab when maintenance is active */}
+                {tab.id === "system" && maintenance.enabled && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                )}
               </button>
             )
           })}
@@ -214,26 +219,113 @@ function Settings() {
 
         {/* ── SYSTEM TAB ── */}
         {activeTab === "system" && (
-          <div>
-            <p className="text-sm font-semibold mb-1">Document Templates</p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Manage PDF templates for CAV documents
-            </p>
-            <button
-              onClick={() => navigate('/settings/pdf-template')}
-              className="w-full flex items-center gap-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-foreground/20 px-4 py-4 transition-all text-left group"
-            >
-              <div className="w-10 h-10 rounded-xl border border-border bg-muted flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-foreground" />
+          <div className="space-y-8">
+
+            {/* ── Maintenance Mode ── */}
+            <section>
+              <p className="text-sm font-semibold mb-1">Maintenance Mode</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Replaces the entire app with a maintenance page for all visitors, instantly
+              </p>
+
+              <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+
+                {/* Toggle row */}
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium leading-none mb-1">Enable maintenance page</p>
+                    <p className="text-xs text-muted-foreground">
+                      Takes effect immediately for all connected browsers
+                    </p>
+                  </div>
+
+                  {/* Toggle with saving spinner */}
+                  <div className="flex items-center gap-2">
+                    {maintenance.saving && (
+                      <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                    )}
+                    <button
+                      onClick={() => maintenance.setEnabled(!maintenance.enabled)}
+                      disabled={maintenance.saving || maintenance.loading}
+                      role="switch"
+                      aria-checked={maintenance.enabled}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed",
+                        maintenance.enabled
+                          ? "bg-foreground border-foreground"
+                          : "bg-muted border-border"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform duration-200",
+                          maintenance.enabled ? "translate-x-5" : "translate-x-0.5"
+                        )}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-border" />
+
+                {/* Message editor */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    Message shown to visitors
+                  </p>
+                  <textarea
+                    value={maintenance.message}
+                    onChange={(e) => maintenance.setMessage(e.target.value)}
+                    rows={3}
+                    disabled={maintenance.saving}
+                    placeholder="Describe what's happening or when you'll be back..."
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-foreground/20 placeholder:text-muted-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Changes are saved automatically to Supabase and reflect instantly.
+                  </p>
+                </div>
+
+                {/* Active warning */}
+                {maintenance.enabled && (
+                  <div className="flex items-start gap-3 rounded-lg border border-destructive/25 bg-destructive/10 px-3.5 py-3">
+                    <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                    <p className="text-xs text-destructive leading-relaxed">
+                      <span className="font-semibold">Maintenance mode is active.</span>{" "}
+                      All visitors see the maintenance page right now. Toggle this off to restore normal access.
+                      You will also be redirected upon leaving this page.
+                    </p>
+                  </div>
+                )}
+
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">PDF Field Editor</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Place and configure form fields on the CAV template
-                </p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </button>
+            </section>
+
+            <div className="border-t border-border" />
+
+            {/* ── Document Templates ── */}
+            <section>
+              <p className="text-sm font-semibold mb-1">Document Templates</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Manage PDF templates for CAV documents
+              </p>
+              <button
+                onClick={() => navigate('/settings/pdf-template')}
+                className="w-full flex items-center gap-4 rounded-xl border border-border bg-card hover:bg-muted/40 hover:border-foreground/20 px-4 py-4 transition-all text-left group"
+              >
+                <div className="w-10 h-10 rounded-xl border border-border bg-muted flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 text-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">PDF Field Editor</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Place and configure form fields on the CAV template
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </button>
+            </section>
+
           </div>
         )}
 

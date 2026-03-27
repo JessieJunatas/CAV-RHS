@@ -18,9 +18,11 @@ import DocsPage from './pages/docs/docs'
 import Settings from './pages/settings/Settings'
 import { AppearanceProvider, resetAppearanceToDefaults } from './components/appearance-provider'
 import { CollapseProvider } from '@/context/collapse-provider'
-import { NavigationGuardProvider } from '@/context/navigation-guard-provider' 
+import { NavigationGuardProvider } from '@/context/navigation-guard-provider'
 import { supabase } from '@/lib/supabase'
 import PDFFieldEditor from './components/pdf-editor'
+import MaintenancePage from './pages/maintenance/maintenance'
+import { useMaintenance } from './hooks/use-maintenance'
 
 const DEFAULT_THEME = 'dark'
 const STORAGE_KEY = 'vite-ui-theme'
@@ -36,9 +38,10 @@ async function applyUserTheme(userId: string) {
     localStorage.setItem(STORAGE_KEY, data.theme)
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
-    root.classList.add(data.theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : data.theme
+    root.classList.add(
+      data.theme === 'system'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        : data.theme
     )
   }
 }
@@ -60,25 +63,25 @@ function Layout() {
   return (
     <div className={
       isFullscreenTool
-        ? "flex flex-col h-screen overflow-hidden"
-        : "flex flex-col min-h-screen w-full"
+        ? 'flex flex-col h-screen overflow-hidden'
+        : 'flex flex-col min-h-screen w-full'
     }>
       {!isAuthPage && <Navbar />}
 
-      <main className={isFullscreenTool ? "flex-1 overflow-hidden" : "flex-1"}>
+      <main className={isFullscreenTool ? 'flex-1 overflow-hidden' : 'flex-1'}>
         <Routes>
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route path="/view/:id" element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
-          <Route path="/edit/:id" element={<ProtectedRoute><EditPage /></ProtectedRoute>} />
-          <Route path="/signatories" element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/"                      element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/view/:id"              element={<ProtectedRoute><ViewPage /></ProtectedRoute>} />
+          <Route path="/edit/:id"              element={<ProtectedRoute><EditPage /></ProtectedRoute>} />
+          <Route path="/signatories"           element={<ProtectedRoute><SignatoriesPage /></ProtectedRoute>} />
+          <Route path="/login"                 element={<LoginPage />} />
+          <Route path="/settings"              element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/settings/pdf-template" element={<ProtectedRoute><PDFFieldEditor supabase={supabase} bucketName="templates" /></ProtectedRoute>} />
-          <Route path="/archive" element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
-          <Route path="/audit-logs" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
-          <Route path="/about" element={<ProtectedRoute><About /></ProtectedRoute>} />
-          <Route path="/docs" element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
-          <Route path="/forms/:formType" element={<ProtectedRoute><FormRouter /></ProtectedRoute>} />
+          <Route path="/archive"               element={<ProtectedRoute><ArchivePage /></ProtectedRoute>} />
+          <Route path="/audit-logs"            element={<ProtectedRoute><Audit /></ProtectedRoute>} />
+          <Route path="/about"                 element={<ProtectedRoute><About /></ProtectedRoute>} />
+          <Route path="/docs"                  element={<ProtectedRoute><DocsPage /></ProtectedRoute>} />
+          <Route path="/forms/:formType"       element={<ProtectedRoute><FormRouter /></ProtectedRoute>} />
         </Routes>
       </main>
 
@@ -102,6 +105,8 @@ function Layout() {
 }
 
 function App() {
+  const maintenance = useMaintenance()
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) applyUserTheme(user.id)
@@ -118,14 +123,32 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // ── Maintenance gate ──────────────────────────────────────────────────────
+  // While loading the config, render nothing to avoid a flash of the app.
+  // Once loaded, if maintenance is enabled, show the maintenance page globally.
+  // The Supabase realtime subscription in useMaintenance() means this reacts
+  // instantly — no page refresh needed on any connected browser.
+  if (maintenance.loading) return null
+
+  if (maintenance.enabled) {
+    return (
+      <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
+        <AppearanceProvider>
+          <MaintenancePage message={maintenance.message} />
+        </AppearanceProvider>
+      </ThemeProvider>
+    )
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
       <AppearanceProvider>
         <BrowserRouter>
           <CollapseProvider>
-            <NavigationGuardProvider>  
+            <NavigationGuardProvider>
               <Layout />
-            </NavigationGuardProvider>  
+            </NavigationGuardProvider>
           </CollapseProvider>
         </BrowserRouter>
       </AppearanceProvider>
