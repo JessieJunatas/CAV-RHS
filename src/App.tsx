@@ -21,8 +21,6 @@ import { CollapseProvider } from '@/context/collapse-provider'
 import { NavigationGuardProvider } from '@/context/navigation-guard-provider'
 import { supabase } from '@/lib/supabase'
 import PDFFieldEditor from './components/pdf-editor'
-import MaintenanceBanner from './components/maintenance'
-import { useMaintenance } from './hooks/use-maintenance'
 
 const DEFAULT_THEME = 'dark'
 const STORAGE_KEY = 'vite-ui-theme'
@@ -105,7 +103,6 @@ function Layout() {
 }
 
 function App() {
-  const maintenance = useMaintenance()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -129,10 +126,6 @@ function App() {
         <BrowserRouter>
           <CollapseProvider>
             <NavigationGuardProvider>
-              {/* ── Maintenance banner — sits above everything, dismissible ── */}
-              {!maintenance.loading && maintenance.enabled && (
-                <MaintenanceBanner message={maintenance.message} />
-              )}
               <Layout />
             </NavigationGuardProvider>
           </CollapseProvider>
