@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAppearance } from "@/components/appearance-provider"
 import { cn } from "@/lib/utils"
-import { Check, FileText, ChevronRight, Paintbrush, Layout, AlertTriangle, Loader2 } from "lucide-react"
+import { Check, FileText, ChevronRight, Paintbrush, Layout } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMaintenance } from "@/hooks/use-maintenance"
