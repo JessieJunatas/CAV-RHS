@@ -51,14 +51,6 @@ const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const NUDGE = 1;
 const HISTORY_LIMIT = 50;
 const snap = (v: number) => Math.round(v / SNAP_SIZE) * SNAP_SIZE;
-const MULTILINE_FIELDS = new Set([
-  "student_name", "p2_student_name", "p3_student_name", "p4_student_name",
-  "p3_request_name",
-  "prepared_by_name", "submitted_by_name",
-  "p2_submitted_by_name", "p3_submitted_by_name", "p4_submitted_by_name",
-  "prepared_by_position", "submitted_by_position",
-  "p2_submitted_by_position", "p3_submitted_by_position", "p4_submitted_by_position",
-]);
 const TYPE_PREFIX: Record<TemplateType, string> = { jhs: "jhs/", k12: "k12/" };
 const detectTemplateType = (name: string): TemplateType =>
   name.startsWith("k12/") ? "k12" : "jhs";
