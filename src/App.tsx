@@ -21,7 +21,7 @@ import { CollapseProvider } from '@/context/collapse-provider'
 import { NavigationGuardProvider } from '@/context/navigation-guard-provider'
 import { supabase } from '@/lib/supabase'
 import PDFFieldEditor from './components/pdf-editor'
-import MaintenancePage from './pages/maintenance/maintenance'
+import MaintenanceBanner from './components/maintenance'
 import { useMaintenance } from './hooks/use-maintenance'
 
 const DEFAULT_THEME = 'dark'
@@ -123,30 +123,16 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── Maintenance gate ──────────────────────────────────────────────────────
-  // While loading the config, render nothing to avoid a flash of the app.
-  // Once loaded, if maintenance is enabled, show the maintenance page globally.
-  // The Supabase realtime subscription in useMaintenance() means this reacts
-  // instantly — no page refresh needed on any connected browser.
-  if (maintenance.loading) return null
-
-  if (maintenance.enabled) {
-    return (
-      <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
-        <AppearanceProvider>
-          <MaintenancePage message={maintenance.message} />
-        </AppearanceProvider>
-      </ThemeProvider>
-    )
-  }
-  // ─────────────────────────────────────────────────────────────────────────
-
   return (
     <ThemeProvider defaultTheme={DEFAULT_THEME} storageKey={STORAGE_KEY}>
       <AppearanceProvider>
         <BrowserRouter>
           <CollapseProvider>
             <NavigationGuardProvider>
+              {/* ── Maintenance banner — sits above everything, dismissible ── */}
+              {!maintenance.loading && maintenance.enabled && (
+                <MaintenanceBanner message={maintenance.message} />
+              )}
               <Layout />
             </NavigationGuardProvider>
           </CollapseProvider>

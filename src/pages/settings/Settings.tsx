@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAppearance } from "@/components/appearance-provider"
 import { cn } from "@/lib/utils"
-import { Check, FileText, ChevronRight, Paintbrush, Layout, AlertTriangle, Loader2 } from "lucide-react"
+import { Check, FileText, ChevronRight, Paintbrush, Layout, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMaintenance } from "@/hooks/use-maintenance"
@@ -85,9 +85,9 @@ function Settings() {
               >
                 <Icon className="w-3.5 h-3.5" />
                 {tab.label}
-                {/* Red dot on System tab when maintenance is active */}
+                {/* Yellow dot on System tab when banner is active */}
                 {tab.id === "system" && maintenance.enabled && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
                 )}
               </button>
             )
@@ -221,11 +221,11 @@ function Settings() {
         {activeTab === "system" && (
           <div className="space-y-8">
 
-            {/* ── Maintenance Mode ── */}
+            {/* ── Maintenance Banner ── */}
             <section>
-              <p className="text-sm font-semibold mb-1">Maintenance Mode</p>
+              <p className="text-sm font-semibold mb-1">Maintenance Banner</p>
               <p className="text-xs text-muted-foreground mb-4">
-                Replaces the entire app with a maintenance page for all visitors, instantly
+                Shows a dismissible banner at the top of the app for all visitors
               </p>
 
               <div className="rounded-xl border border-border bg-card p-5 space-y-5">
@@ -233,13 +233,11 @@ function Settings() {
                 {/* Toggle row */}
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium leading-none mb-1">Enable maintenance page</p>
+                    <p className="text-sm font-medium leading-none mb-1">Show banner</p>
                     <p className="text-xs text-muted-foreground">
-                      Takes effect immediately for all connected browsers
+                      Appears above the navbar for all users
                     </p>
                   </div>
-
-                  {/* Toggle with saving spinner */}
                   <div className="flex items-center gap-2">
                     {maintenance.saving && (
                       <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
@@ -271,7 +269,7 @@ function Settings() {
                 {/* Message editor */}
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Message shown to visitors
+                    Banner message
                   </p>
                   <textarea
                     value={maintenance.message}
@@ -282,19 +280,20 @@ function Settings() {
                     className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-foreground/20 placeholder:text-muted-foreground/50 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Changes are saved automatically to Supabase and reflect instantly.
+                    Changes are saved automatically and reflect instantly for all users.
                   </p>
                 </div>
 
-                {/* Active warning */}
+                {/* Live preview */}
                 {maintenance.enabled && (
-                  <div className="flex items-start gap-3 rounded-lg border border-destructive/25 bg-destructive/10 px-3.5 py-3">
-                    <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                    <p className="text-xs text-destructive leading-relaxed">
-                      <span className="font-semibold">Maintenance mode is active.</span>{" "}
-                      All visitors see the maintenance page right now. Toggle this off to restore normal access.
-                      You will also be redirected upon leaving this page.
-                    </p>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+                    <div className="rounded-lg overflow-hidden border border-yellow-400/40">
+                      <div className="bg-yellow-400 text-yellow-950 px-4 py-2 text-xs font-medium flex items-center justify-center gap-2">
+                        <span>🔧</span>
+                        <span className="truncate">{maintenance.message}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
