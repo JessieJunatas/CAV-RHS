@@ -31,7 +31,7 @@ export function useMaintenance() {
       const { data, error } = await supabase
         .from("app_config")
         .select("value")
-        .eq("key", "maintenance_master")
+        .eq("key", "maintenance")
         .single()
 
       if (!ignore) {
@@ -44,15 +44,16 @@ export function useMaintenance() {
 
     fetchConfig()
 
+    // Any browser / user that has this hook mounted will react instantly
     const channel = supabase
-      .channel("app_config_maintenance_master")
+      .channel("app_config_maintenance")
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "app_config",
-          filter: "key=eq.maintenance_master",
+          filter: "key=eq.maintenance",
         },
         (payload) => {
           if (!ignore && payload.new?.value) {
@@ -77,10 +78,11 @@ export function useMaintenance() {
     const { error } = await supabase
       .from("app_config")
       .update({ value: next, updated_at: new Date().toISOString() })
-      .eq("key", "maintenance_master") // ← fixed: was incorrectly "maintenance"
+      .eq("key", "maintenance")
 
     if (error) {
-      setState(stateRef.current) // roll back on failure
+      // Roll back optimistic update on failure
+      setState(stateRef.current)
       console.error("Failed to update maintenance config:", error.message)
     }
 
