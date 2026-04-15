@@ -79,7 +79,7 @@ export async function generateK12PreviewUrl(
   // Page 1 — Transmittal
   setField("control_no", form.control_no ?? "")
   setField("student_name", name, true, true)
-  setField("lrn", lrn)
+  setField("lrn", lrn, true)
   setField("date_of_application", formatDate(form.date_of_application))
   setField("date_of_transmittal", formatDate(form.date_of_transmission))
   setField("prepared_by_name", prepareName, true)
@@ -90,7 +90,7 @@ export async function generateK12PreviewUrl(
   // Page 2 — Indorsement
   setField("p2_date", formatDate(today))
   setField("p2_student_name", name, true)
-  setField("p2_lrn", lrn)
+  setField("p2_lrn", lrn, true)
   setField("p2_submitted_by_name", submitName, true)
   setField("p2_submitted_by_position", submitPosition, true)
   setField("p2_check_completion",     form.docs_completion     ? "( X ) Certification of Completion/Graduation" : "")
@@ -100,7 +100,7 @@ export async function generateK12PreviewUrl(
 
   // Page 3 — CAV Form 4
   setField("p3_student_name", name, true)
-  setField("p3_lrn", lrn)
+  setField("p3_lrn", lrn, true)
 
   const enrolledGrade = (form.enrolled_grade ?? "").trim()
   const enrolledSY = (form.enrolled_sy ?? "").trim()
@@ -132,7 +132,7 @@ export async function generateK12PreviewUrl(
   setField("p3_submitted_by_position", submitPosition, true)
 
   setField("p4_student_name", name, true)
-  setField("p4_lrn", lrn)
+  setField("p4_lrn", lrn, true)
   setField("p4_sy_completed", form.school_year_completed ?? "")
   setField("p4_sy_graduated", formatDate(form.school_year_graduated))
   setField("p4_is_graduated", form.is_graduated ? "Completed" : "Attended")
