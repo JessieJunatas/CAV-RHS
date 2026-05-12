@@ -356,10 +356,10 @@ export default function EditPage() {
     setFormData(p => p ? ({ ...p, [e.target.name]: e.target.value }) : p)
   }
 
-  const handleDate = (name: keyof FormData, val: string) => {
+const handleDate = (name: keyof FormData, val: string) => {
     clearError(name)
     setSaved(false)
-    setFormData(p => p ? ({ ...p, [name]: val }) : p)
+    setFormData(p => p ? ({ ...p, [name]: val || null }) : p)
   }
 
   const ch = (field: string) => {

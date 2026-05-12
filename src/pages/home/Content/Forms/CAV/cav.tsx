@@ -35,7 +35,7 @@ type CavFormData = {
   date_of_transmission: string
   school_year_completed: string
   date_of_application: string
-  school_year_graduated: string
+  school_year_graduated: string | null
   control_no: string
   enrolled_grade: string
   enrolled_sy: string
@@ -57,7 +57,7 @@ type Toast = { id: number; type: "error" | "success"; title: string; message: st
 // ─── Constants ────────────────────────────────────────────────────────────────
 const EMPTY: CavFormData = {
   full_legal_name: "", date_issued: "", date_of_transmission: "",
-  school_year_completed: "", date_of_application: "", school_year_graduated: "",
+  school_year_completed: "", date_of_application: "", school_year_graduated: null,
   control_no: "", enrolled_grade: "", enrolled_sy: "",
   status_completed_grade: "", status_completed_sy: "", status_graduated_sy: "",
   prepared_by: "", submitted_by: "", is_graduated: false, docs_completion: true, 
@@ -502,9 +502,11 @@ export default function CAV() {
     setFormData(updated)
     markTouched(name)
 
-    // Validate the changed field itself
-    const err = validateField(name, updated)
-    if (err) setFieldErrors(p => ({ ...p, [name]: err }))
+    // Only validate if there's a value — clearing should not produce an error
+    if (val) {
+      const err = validateField(name, updated)
+      if (err) setFieldErrors(p => ({ ...p, [name]: err }))
+    }
 
     // Re-validate cross-field date pairs
     if (name === "date_of_application") revalidatePair(updated, ["date_issued"])
@@ -914,6 +916,7 @@ export default function CAV() {
                   error={hasErr("school_year_graduated")}
                   errorMsg={fieldErrors.school_year_graduated}
                   filled={isFilled("school_year_graduated") && !hasErr("school_year_graduated")}
+                  optional
                 >
                   <DatePicker
                     value={formData.school_year_graduated}

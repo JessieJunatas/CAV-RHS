@@ -2,11 +2,11 @@ import { useState, useEffect } from "react"
 import { format, parseISO, getDaysInMonth, setMonth, setYear } from "date-fns"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/animate-ui/components/buttons/button"
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface DatePickerProps {
-  value: string
+  value: string | null
   onChange: (value: string) => void
   disabled?: boolean
   className?: string
@@ -37,7 +37,6 @@ export function DatePicker({
 
   const [cursor, setCursor] = useState<Date>(parsed ?? today)
 
-  // Sync cursor when value changes externally
   useEffect(() => {
     if (parsed) setCursor(parsed)
   }, [value])
@@ -45,11 +44,9 @@ export function DatePicker({
   const cursorYear = cursor.getFullYear()
   const cursorMonth = cursor.getMonth()
 
-  // Year range for year picker
   const yearStart = Math.floor(cursorYear / 12) * 12
   const years = Array.from({ length: 12 }, (_, i) => yearStart + i)
 
-  // Build calendar days
   const firstDayOfMonth = new Date(cursorYear, cursorMonth, 1).getDay()
   const daysInMonth = getDaysInMonth(cursor)
   const daysInPrevMonth = getDaysInMonth(new Date(cursorYear, cursorMonth - 1))
@@ -83,6 +80,12 @@ export function DatePicker({
     setView("days")
   }
 
+  const clearDate = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onChange("")
+    setCursor(today)
+  }
+
   const prevMonth = () => setCursor(new Date(cursorYear, cursorMonth - 1, 1))
   const nextMonth = () => setCursor(new Date(cursorYear, cursorMonth + 1, 1))
   const prevYearRange = () => setCursor(new Date(yearStart - 12, cursorMonth, 1))
@@ -101,7 +104,19 @@ export function DatePicker({
           )}
         >
           <CalendarIcon className="h-3.5 w-3.5 mr-2 opacity-50 shrink-0" />
-          {parsed ? format(parsed, "PPP") : <span>{placeholder}</span>}
+          <span className="flex-1 truncate">
+            {parsed ? format(parsed, "PPP") : placeholder}
+          </span>
+          {parsed && !disabled && (
+            <span
+              role="button"
+              onClick={clearDate}
+              className="ml-1 shrink-0 rounded-sm p-0.5 opacity-50 hover:opacity-100 hover:bg-accent transition-all"
+              aria-label="Clear date"
+            >
+              <X className="h-3 w-3" />
+            </span>
+          )}
         </Button>
       </PopoverTrigger>
 
@@ -168,7 +183,6 @@ export function DatePicker({
         {/* ── Day view ── */}
         {view === "days" && (
           <div className="p-3">
-            {/* Weekday headers */}
             <div className="grid grid-cols-7 mb-1">
               {DAYS.map(d => (
                 <div key={d} className="h-8 flex items-center justify-center text-[11px] font-medium text-muted-foreground">
@@ -177,7 +191,6 @@ export function DatePicker({
               ))}
             </div>
 
-            {/* Day cells */}
             <div className="grid grid-cols-7 gap-y-0.5">
               {cells.map(({ date, current }, i) => {
                 const selected = isSelected(date)
@@ -200,14 +213,21 @@ export function DatePicker({
               })}
             </div>
 
-            {/* Today shortcut */}
-            <div className="mt-2 pt-2 border-t border-border/40">
+            <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-1">
               <button
                 onClick={() => selectDay(today)}
-                className="w-full text-xs text-muted-foreground hover:text-foreground py-1 rounded-md hover:bg-accent transition-colors"
+                className="flex-1 text-xs text-muted-foreground hover:text-foreground py-1 rounded-md hover:bg-accent transition-colors"
               >
                 Today — {format(today, "MMM d, yyyy")}
               </button>
+              {parsed && (
+                <button
+                  onClick={() => { onChange(""); setCursor(today); setOpen(false) }}
+                  className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 rounded-md hover:bg-destructive/10 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         )}
